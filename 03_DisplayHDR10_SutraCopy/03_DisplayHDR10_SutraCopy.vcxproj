@@ -143,7 +143,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\commonSutraCopy\Swapchain.h" />
+    <ClInclude Include="..\commonSutraCopy\VulkanAppBase.h" />
     <ClInclude Include="..\commonSutraCopy\VulkanBookUtil.h" />
+    <ClInclude Include="DisplayHDR10App.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\commonSutraCopy\Swapchain.cpp" />
+    <ClCompile Include="..\commonSutraCopy\VulkanAppBase.cpp" />
+    <ClCompile Include="DisplayHDR10App.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
