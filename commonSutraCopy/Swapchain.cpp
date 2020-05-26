@@ -86,7 +86,7 @@ void Swapchain::Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, u
 		{
 			vkDestroyImageView(m_device, view, nullptr);
 		}
-		vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+		vkDestroySwapchainKHR(m_device, oldSwapchain, nullptr);
 		m_imageViews.clear();
 		m_images.clear();
 	}
@@ -111,5 +111,32 @@ void Swapchain::Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, u
 		VkResult result = vkCreateImageView(m_device, &viewCI, nullptr, &m_imageViews[i]);
 		ThrowIfFailed(result, "vkCreateSwapchainKHR Failed.");
 	}
+}
+
+void Swapchain::Cleanup()
+{
+	if (m_device != VK_NULL_HANDLE)
+	{
+		for (const VkImageView& view : m_imageViews)
+		{
+			vkDestroyImageView(m_device, view, nullptr);
+		}
+
+		if (m_swapchain != VK_NULL_HANDLE)
+		{
+			vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+		}
+
+		m_swapchain = VK_NULL_HANDLE;
+	}
+
+	if (m_vkInstance != VK_NULL_HANDLE)
+	{
+		vkDestroySurfaceKHR(m_vkInstance, m_surface, nullptr);
+		m_surface = VK_NULL_HANDLE;
+	}
+
+	m_imageViews.clear();
+	m_images.clear();
 }
 

@@ -10,6 +10,7 @@ public:
 	~Swapchain();
 
 	void Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, uint32_t width, uint32_t height, VkFormat desireFormat);
+	void Cleanup();
 
 private:
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
