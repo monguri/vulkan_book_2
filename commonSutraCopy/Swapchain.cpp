@@ -34,7 +34,7 @@ void Swapchain::Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, u
 		{
 			m_selectFormat = f;
 		}
-	 }
+	}
 
 	// サーフェスがサポートされているか確認
 	VkBool32 isSupport = VK_FALSE;
@@ -80,6 +80,36 @@ void Swapchain::Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, u
 	result = vkCreateSwapchainKHR(m_device, &ci, nullptr, &m_swapchain);
 	ThrowIfFailed(result, "vkCreateSwapchainKHR Failed.");
 
-	// TODO:続きの実装
+	if (oldSwapchain != VK_NULL_HANDLE)
+	{
+		for (const VkImageView& view : m_imageViews)
+		{
+			vkDestroyImageView(m_device, view, nullptr);
+		}
+		vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+		m_imageViews.clear();
+		m_images.clear();
+	}
+
+	// スワップチェインのもつカラーバッファ用のビュー作成
+	vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
+	m_images.resize(imageCount);
+	vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, m_images.data());
+
+	m_imageViews.resize(imageCount);
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		VkImageViewCreateInfo viewCI{};
+		viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewCI.pNext = nullptr;
+		viewCI.flags = 0;
+		viewCI.image = m_images[i];
+		viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewCI.format = m_selectFormat.format;
+		viewCI.components = book_util::DefaultComponentMapping();
+		viewCI.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+		VkResult result = vkCreateImageView(m_device, &viewCI, nullptr, &m_imageViews[i]);
+		ThrowIfFailed(result, "vkCreateSwapchainKHR Failed.");
+	}
 }
 
