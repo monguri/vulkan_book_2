@@ -14,6 +14,8 @@ public:
 	void AcquireNextImage(uint32_t* pImageIndex, VkSemaphore semaphore, uint64_t timeout = UINT64_MAX);
 	void QueuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitRenderComplete);
 
+	VkSurfaceFormatKHR GetSurfaceFormat() const { return m_selectFormat; }
+
 private:
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
 	VkSurfaceKHR m_surface = VK_NULL_HANDLE;
