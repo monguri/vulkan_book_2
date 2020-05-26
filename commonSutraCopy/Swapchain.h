@@ -11,6 +11,7 @@ public:
 
 	void Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, uint32_t width, uint32_t height, VkFormat desireFormat);
 	void Cleanup();
+	void AcquireNextImage(uint32_t* pImageIndex, VkSemaphore semaphore, uint64_t timeout = UINT64_MAX);
 
 private:
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

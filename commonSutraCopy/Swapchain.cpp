@@ -109,7 +109,7 @@ void Swapchain::Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, u
 		viewCI.components = book_util::DefaultComponentMapping();
 		viewCI.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 		VkResult result = vkCreateImageView(m_device, &viewCI, nullptr, &m_imageViews[i]);
-		ThrowIfFailed(result, "vkCreateSwapchainKHR Failed.");
+		ThrowIfFailed(result, "vkCreateImageView Failed.");
 	}
 }
 
@@ -138,5 +138,11 @@ void Swapchain::Cleanup()
 
 	m_imageViews.clear();
 	m_images.clear();
+}
+
+void Swapchain::AcquireNextImage(uint32_t* pImageIndex, VkSemaphore semaphore, uint64_t timeout)
+{
+	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, timeout, semaphore, VK_NULL_HANDLE, pImageIndex);
+	ThrowIfFailed(result, "vkAcquireNextImageKHR Failed.");
 }
 
