@@ -146,3 +146,17 @@ void Swapchain::AcquireNextImage(uint32_t* pImageIndex, VkSemaphore semaphore, u
 	ThrowIfFailed(result, "vkAcquireNextImageKHR Failed.");
 }
 
+void Swapchain::QueuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitRenderComplete)
+{
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.pNext = nullptr;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = &waitRenderComplete;
+	presentInfo.swapchainCount = 1;
+	presentInfo.pImageIndices = &imageIndex;
+	presentInfo.pSwapchains = &m_swapchain;
+	VkResult result = vkQueuePresentKHR(queue, &presentInfo);
+	ThrowIfFailed(result, "vkQueuePresentKHR Failed.");
+}
+
