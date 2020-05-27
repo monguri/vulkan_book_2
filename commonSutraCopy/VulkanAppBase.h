@@ -24,10 +24,14 @@ public:
 	virtual bool OnMouseButtonUp(int button) {}
 	virtual bool OnMouseMove(int dx, int dy) {}
 
+	uint32_t GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
+
 protected:
 	VkDevice m_device = VK_NULL_HANDLE;
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 	uint32_t m_gfxQueueIndex = ~0u;
+
+	VkPhysicalDeviceMemoryProperties m_physicalMemProps;
 
 	std::unique_ptr<Swapchain> m_swapchain = VK_NULL_HANDLE;
 

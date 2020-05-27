@@ -17,3 +17,24 @@ bool VulkanAppBase::OnSizeChanged(uint32_t width, uint32_t height)
 	return true;
 }
 
+uint32_t VulkanAppBase::GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const
+{
+	uint32_t result = ~0u;
+
+	for (uint32_t i = 0; i < m_physicalMemProps.memoryTypeCount; ++i)
+	{
+		if (requestBits & 1) // iŒ…‚Ìƒrƒbƒg‚ª1‚Ì‚Æ‚«‚¾‚¯”äŠr‚·‚é
+		{
+			const VkMemoryType& type = m_physicalMemProps.memoryTypes[i];
+			if ((type.propertyFlags & requestProps) == requestProps)
+			{
+				result = i;
+				break;
+			}
+		}
+		requestBits >>= 1;
+	}
+
+	return result;
+}
+
