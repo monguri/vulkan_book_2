@@ -25,6 +25,7 @@ public:
 	virtual bool OnMouseMove(int dx, int dy) {}
 
 	uint32_t GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
+	void SwitchFullscreen(GLFWwindow* window);
 
 protected:
 	VkDevice m_device = VK_NULL_HANDLE;

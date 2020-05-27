@@ -38,3 +38,28 @@ uint32_t VulkanAppBase::GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropert
 	return result;
 }
 
+void VulkanAppBase::SwitchFullscreen(GLFWwindow* window)
+{
+	static int lastWindowPosX, lastWindowPosY;
+	static int lastWindowSizeW, lastWindowSizeH;
+
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+	// 現在のモニターに合わせたサイズに変更
+	if (!m_isFullscreen)
+	{
+		// to fullscreen
+		glfwGetWindowPos(window, &lastWindowPosX, &lastWindowPosY);
+		glfwGetWindowSize(window, &lastWindowSizeW, &lastWindowSizeH);
+		glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+	}
+	else
+	{
+		// to windowmode
+		glfwSetWindowMonitor(window, nullptr, lastWindowPosX, lastWindowPosY, lastWindowSizeW, lastWindowSizeH, mode->refreshRate);
+	}
+
+	m_isFullscreen = !m_isFullscreen;
+}
+
