@@ -1,5 +1,7 @@
 #pragma once
-class DisplayHDR10App
+#include "VulkanAppBase.h"
+
+class DisplayHDR10App : public VulkanAppBase
 {
 };
 
