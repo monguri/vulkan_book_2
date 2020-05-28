@@ -107,11 +107,27 @@ int _stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
 	DisplayHDR10App theApp;
 	glfwSetWindowUserPointer(window, &theApp);
 
-	while (glfwWindowShouldClose(window) == GLFW_FALSE)
+	try
 	{
-		glfwPollEvents();
+		VkFormat surfaceFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		surfaceFormat = VK_FORMAT_R16G16B16_SFLOAT;
+		theApp.Initialize(window, surfaceFormat, false);
+
+		while (glfwWindowShouldClose(window) == GLFW_FALSE)
+		{
+			glfwPollEvents();
+			theApp.Render();
+		}
+
+		theApp.Terminate();
+	}
+	catch (std::runtime_error e)
+	{
+		OutputDebugStringA(e.what());
+		OutputDebugStringA("\n");
 	}
 
 	glfwTerminate();
+	return 0;
 }
 

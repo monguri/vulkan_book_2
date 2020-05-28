@@ -27,6 +27,11 @@ public:
 	uint32_t GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
 	void SwitchFullscreen(GLFWwindow* window);
 
+	void Initialize(GLFWwindow* window, VkFormat format, bool isFullscreen);
+	void Terminate();
+
+	virtual void Render() = 0;
+
 protected:
 	VkDevice m_device = VK_NULL_HANDLE;
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;

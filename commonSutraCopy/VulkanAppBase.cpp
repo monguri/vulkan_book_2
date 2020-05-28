@@ -63,3 +63,11 @@ void VulkanAppBase::SwitchFullscreen(GLFWwindow* window)
 	m_isFullscreen = !m_isFullscreen;
 }
 
+void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFullscreen)
+{
+}
+
+void VulkanAppBase::Terminate()
+{
+}
+

@@ -3,5 +3,7 @@
 
 class DisplayHDR10App : public VulkanAppBase
 {
+public:
+	virtual void Render();
 };
 
