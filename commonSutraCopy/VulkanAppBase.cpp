@@ -65,9 +65,60 @@ void VulkanAppBase::SwitchFullscreen(GLFWwindow* window)
 
 void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFullscreen)
 {
+	m_window = window;
+	CreateInstance();
+
+	// 物理デバイスの選択
+	uint32_t count = 0;
+	VkResult result = vkEnumeratePhysicalDevices(m_vkInstance, &count, nullptr);
+	ThrowIfFailed(result, "vkEnumeratePhysicalDevices Failed.");
+	std::vector<VkPhysicalDevice> physicalDevices(count);
+	result = vkEnumeratePhysicalDevices(m_vkInstance, &count, physicalDevices.data());
+	ThrowIfFailed(result, "vkEnumeratePhysicalDevices Failed.");
+
+	// 最初のデバイスを使用する
+	m_physicalDevice = physicalDevices[0];
+	vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_physicalMemProps);
 }
 
 void VulkanAppBase::Terminate()
 {
 }
 
+void VulkanAppBase::CreateInstance()
+{
+	VkApplicationInfo appInfo{};
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pApplicationName = "VulkanBook2";
+	appInfo.pEngineName = "VulkanBook2";
+	appInfo.apiVersion = VK_API_VERSION_1_1;
+	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+
+	// インスタンス拡張情報の取得
+	uint32_t count = 0;
+	vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+	std::vector<VkExtensionProperties> props(count);
+	vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data());
+
+	std::vector<const char*> extensions;
+	extensions.reserve(count);
+	for (const VkExtensionProperties& v : props)
+	{
+		extensions.push_back(v.extensionName);
+	}
+
+	VkInstanceCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	ci.enabledExtensionCount = uint32_t(extensions.size());
+	ci.ppEnabledExtensionNames = extensions.data();
+	ci.pApplicationInfo = &appInfo;
+#ifdef _DEBUG
+	// デバッグビルドでは検証レイヤーを有効化
+	const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };
+	ci.enabledLayerCount = 1;
+	ci.ppEnabledLayerNames = layers;
+#endif
+
+	VkResult result = vkCreateInstance(&ci, nullptr, &m_vkInstance);
+	ThrowIfFailed(result, "vkCreateInstance Failed.");
+}

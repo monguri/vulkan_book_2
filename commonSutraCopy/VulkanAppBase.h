@@ -35,14 +35,19 @@ public:
 protected:
 	VkDevice m_device = VK_NULL_HANDLE;
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-	uint32_t m_gfxQueueIndex = ~0u;
+	VkInstance m_vkInstance = VK_NULL_HANDLE;
 
 	VkPhysicalDeviceMemoryProperties m_physicalMemProps;
+	uint32_t m_gfxQueueIndex = ~0u;
 
 	std::unique_ptr<Swapchain> m_swapchain = VK_NULL_HANDLE;
+
+	GLFWwindow* m_window = nullptr;
 
 private:
 	bool m_isMinimizedWindow = false;
 	bool m_isFullscreen = false;
+
+	void CreateInstance();
 };
 
