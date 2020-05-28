@@ -67,6 +67,15 @@ static void MouseInputCallback(GLFWwindow* window, int button, int action, int m
 	}
 }
 
+static void MouseWheelCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	VulkanAppBase* pApp = book_util::GetApplication<VulkanAppBase>(window);
+	if (pApp == nullptr)
+	{
+		return;
+	}
+}
+
 static void WindowResizeCallback(GLFWwindow* window, int width, int height)
 {
 	VulkanAppBase* pApp = book_util::GetApplication<VulkanAppBase>(window);
@@ -92,6 +101,7 @@ int _stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
 	glfwSetKeyCallback(window, KeyboardInputCallback);
 	glfwSetMouseButtonCallback(window, MouseInputCallback);
 	glfwSetCursorPosCallback(window, MouseMoveCallback);
+	glfwSetScrollCallback(window, MouseWheelCallback);
 	glfwSetWindowSizeCallback(window, WindowResizeCallback);
 
 	DisplayHDR10App theApp;
