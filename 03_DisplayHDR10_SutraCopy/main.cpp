@@ -49,6 +49,24 @@ static void MouseMoveCallback(GLFWwindow* window, double x, double y)
 	lastPosY = int(y);
 }
 
+static void MouseInputCallback(GLFWwindow* window, int button, int action, int mods)
+{
+	VulkanAppBase* pApp = book_util::GetApplication<VulkanAppBase>(window);
+	if (pApp == nullptr)
+	{
+		return;
+	}
+
+	if (action == GLFW_PRESS)
+	{
+		pApp->OnMouseButtonDown(button);
+	}
+	if (action == GLFW_RELEASE)
+	{
+		pApp->OnMouseButtonUp(button);
+	}
+}
+
 static void WindowResizeCallback(GLFWwindow* window, int width, int height)
 {
 	VulkanAppBase* pApp = book_util::GetApplication<VulkanAppBase>(window);
@@ -72,6 +90,7 @@ int _stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
 
 	// 各種コールバック登録
 	glfwSetKeyCallback(window, KeyboardInputCallback);
+	glfwSetMouseButtonCallback(window, MouseInputCallback);
 	glfwSetCursorPosCallback(window, MouseMoveCallback);
 	glfwSetWindowSizeCallback(window, WindowResizeCallback);
 
