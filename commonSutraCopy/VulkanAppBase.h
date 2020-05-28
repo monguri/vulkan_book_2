@@ -49,5 +49,13 @@ private:
 	bool m_isFullscreen = false;
 
 	void CreateInstance();
+	void SelectGraphicsQueue();
+	
+	// デバッグレポート有効化
+	void EnableDebugReport();
+	PFN_vkCreateDebugReportCallbackEXT m_vkCreateDebugReportCallbackEXT = VK_NULL_HANDLE;
+	PFN_vkDebugReportMessageEXT m_vkDebugReportMessageEXT = VK_NULL_HANDLE;
+	PFN_vkDestroyDebugReportCallbackEXT m_vkDestroyDebugReportCallbackEXT = VK_NULL_HANDLE;
+	VkDebugReportCallbackEXT m_debugReport = VK_NULL_HANDLE;
 };
 

@@ -1,6 +1,37 @@
 #include "VulkanAppBase.h"
 #include "VulkanBookUtil.h"
 
+#include "sstream"
+
+static VkBool32 VKAPI_CALL DebugReportCallback(
+	VkDebugReportFlagsEXT flags,
+	VkDebugReportObjectTypeEXT objectType,
+	uint64_t object,
+	size_t location,
+	int32_t messageCode,
+	const char* pLayerPrefix,
+	const char* pMessage,
+	void* pUserData)
+{
+	VkBool32 ret = VK_FALSE;
+	if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT || flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
+	{
+		ret = VK_TRUE;
+	}
+
+	std::stringstream ss;
+	if (pLayerPrefix)
+	{
+		ss << "[" << pLayerPrefix << "] ";
+	}
+	ss << pMessage << std::endl;
+
+	OutputDebugStringA(ss.str().c_str());
+
+	return ret;
+
+}
+
 bool VulkanAppBase::OnSizeChanged(uint32_t width, uint32_t height)
 {
 	m_isMinimizedWindow = (width == 0 || height == 0);
@@ -79,6 +110,13 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 	// 最初のデバイスを使用する
 	m_physicalDevice = physicalDevices[0];
 	vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_physicalMemProps);
+
+	// グラフィックスのキューインデックス値を取得.
+	SelectGraphicsQueue();
+
+#ifdef _DEBUG
+	EnableDebugReport();
+#endif
 }
 
 void VulkanAppBase::Terminate()
@@ -122,3 +160,44 @@ void VulkanAppBase::CreateInstance()
 	VkResult result = vkCreateInstance(&ci, nullptr, &m_vkInstance);
 	ThrowIfFailed(result, "vkCreateInstance Failed.");
 }
+
+void VulkanAppBase::SelectGraphicsQueue()
+{
+	uint32_t queuePropCount;
+	vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queuePropCount, nullptr);
+	std::vector<VkQueueFamilyProperties> queueFamilyProps(queuePropCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queuePropCount, queueFamilyProps.data());
+
+	uint32_t graphicsQueue = 0;
+	for (uint32_t i = 0; i < queuePropCount; ++i)
+	{
+		if (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		{
+			graphicsQueue = i;
+			break;
+		}
+	}
+
+	m_gfxQueueIndex = graphicsQueue;
+}
+
+#define GetInstanceProcAddr(FuncName) \
+m_##FuncName = reinterpret_cast<PFN_##FuncName>(vkGetInstanceProcAddr(m_vkInstance, #FuncName))
+
+void VulkanAppBase::EnableDebugReport()
+{
+	GetInstanceProcAddr(vkCreateDebugReportCallbackEXT);
+	GetInstanceProcAddr(vkDebugReportMessageEXT);
+	GetInstanceProcAddr(vkDestroyDebugReportCallbackEXT);
+
+	VkDebugReportFlagsEXT flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+
+	VkDebugReportCallbackCreateInfoEXT drcCI{};
+	drcCI.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+	drcCI.flags = flags;
+	drcCI.pfnCallback = &DebugReportCallback;
+
+	VkResult result = m_vkCreateDebugReportCallbackEXT(m_vkInstance, &drcCI, nullptr, &m_debugReport);
+	ThrowIfFailed(result, "vkCreateDebugReportCallbackEXT Failed.");
+}
+
