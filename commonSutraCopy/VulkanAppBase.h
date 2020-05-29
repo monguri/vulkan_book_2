@@ -44,6 +44,8 @@ protected:
 
 	VkSemaphore m_renderCompletedSem, m_presentCompletedSem = VK_NULL_HANDLE;
 
+	VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
+
 	std::unique_ptr<Swapchain> m_swapchain = VK_NULL_HANDLE;
 
 	GLFWwindow* m_window = nullptr;
@@ -56,6 +58,7 @@ private:
 	void SelectGraphicsQueue();
 	void CreateDevice();
 	void CreateCommandPool();
+	void CreateDescriptorPool();
 	
 	// デバッグレポート有効化
 	void EnableDebugReport();

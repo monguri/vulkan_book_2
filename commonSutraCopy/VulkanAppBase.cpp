@@ -144,6 +144,9 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 	ThrowIfFailed(result, "vkCreateSemaphore Failed.");
 	result = vkCreateSemaphore(m_device, &ci, nullptr, &m_presentCompletedSem);
 	ThrowIfFailed(result, "vkCreateSemaphore Failed.");
+
+	// ディスクリプタプールの生成
+	CreateDescriptorPool();
 }
 
 void VulkanAppBase::Terminate()
@@ -287,3 +290,21 @@ void VulkanAppBase::CreateCommandPool()
 	ThrowIfFailed(result, "vkCreateCommandPool Failed.");
 }
 
+void VulkanAppBase::CreateDescriptorPool()
+{
+	VkDescriptorPoolSize poolSize[2];
+	poolSize[0].descriptorCount = 1000; // とりあえず1000
+	poolSize[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSize[1].descriptorCount = 1000; // とりあえず1000
+	poolSize[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+	VkDescriptorPoolCreateInfo descPoolCI{};
+	descPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	descPoolCI.pNext = nullptr;
+	descPoolCI.flags = 0;
+	descPoolCI.maxSets = 1000 * _countof(poolSize);
+	descPoolCI.poolSizeCount = _countof(poolSize);
+	descPoolCI.pPoolSizes = poolSize;
+	VkResult result = vkCreateDescriptorPool(m_device, &descPoolCI, nullptr, &m_descriptorPool);
+	ThrowIfFailed(result, "vkCreateDescriptorPool Failed.");
+}
