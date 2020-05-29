@@ -120,6 +120,9 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 
 	// 論理デバイスの生成
 	CreateDevice();
+
+	// コマンドプールの生成
+	CreateCommandPool();
 }
 
 void VulkanAppBase::Terminate()
@@ -251,4 +254,15 @@ void VulkanAppBase::CreateDevice()
 	vkGetDeviceQueue(m_device, m_gfxQueueIndex, 0, &m_deviceQueue);
 }
 
+void VulkanAppBase::CreateCommandPool()
+{
+	VkCommandPoolCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	ci.pNext = nullptr;
+	ci.queueFamilyIndex = m_gfxQueueIndex;
+	ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+	VkResult result = vkCreateCommandPool(m_device, &ci, nullptr, &m_commandPool);
+	ThrowIfFailed(result, "vkCreateCommandPool Failed.");
+}
 

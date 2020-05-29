@@ -40,6 +40,7 @@ protected:
 	VkPhysicalDeviceMemoryProperties m_physicalMemProps;
 	VkQueue m_deviceQueue = VK_NULL_HANDLE;
 	uint32_t m_gfxQueueIndex = ~0u;
+	VkCommandPool m_commandPool = VK_NULL_HANDLE;
 
 	std::unique_ptr<Swapchain> m_swapchain = VK_NULL_HANDLE;
 
@@ -52,6 +53,7 @@ private:
 	void CreateInstance();
 	void SelectGraphicsQueue();
 	void CreateDevice();
+	void CreateCommandPool();
 	
 	// デバッグレポート有効化
 	void EnableDebugReport();
