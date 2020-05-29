@@ -117,6 +117,9 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 #ifdef _DEBUG
 	EnableDebugReport();
 #endif
+
+	// 論理デバイスの生成
+	CreateDevice();
 }
 
 void VulkanAppBase::Terminate()
@@ -200,4 +203,52 @@ void VulkanAppBase::EnableDebugReport()
 	VkResult result = m_vkCreateDebugReportCallbackEXT(m_vkInstance, &drcCI, nullptr, &m_debugReport);
 	ThrowIfFailed(result, "vkCreateDebugReportCallbackEXT Failed.");
 }
+
+void VulkanAppBase::CreateDevice()
+{
+	const float defaultQueuePriority(1.0f);
+	VkDeviceQueueCreateInfo devQueueCI{};
+	devQueueCI.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	devQueueCI.pNext = nullptr;
+	devQueueCI.flags = 0;
+	devQueueCI.queueFamilyIndex = m_gfxQueueIndex;
+	devQueueCI.queueCount = 1;
+	devQueueCI.pQueuePriorities = &defaultQueuePriority;
+
+
+	// デバイス拡張情報をここでも取得
+	std::vector<VkExtensionProperties> deviceExtensions;
+
+	uint32_t count = 0;
+	VkResult result = vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, nullptr);
+	ThrowIfFailed(result, "vkEnumerateDeviceExtensionProperties Failed.");
+	deviceExtensions.resize(count);
+	result = vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, deviceExtensions.data());
+	ThrowIfFailed(result, "vkEnumerateDeviceExtensionProperties Failed.");
+
+	std::vector<const char*> extensions;
+	extensions.reserve(count);
+	for (const VkExtensionProperties& v : deviceExtensions)
+	{
+		extensions.push_back(v.extensionName);
+	}
+
+	VkDeviceCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	ci.pNext = nullptr;
+	ci.flags = 0;
+	ci.queueCreateInfoCount = 1;
+	ci.pQueueCreateInfos = &devQueueCI;
+	ci.enabledLayerCount = 0;
+	ci.ppEnabledLayerNames = nullptr;
+	ci.enabledExtensionCount = uint32_t(extensions.size());
+	ci.ppEnabledExtensionNames = extensions.data();
+	ci.pEnabledFeatures = nullptr;
+
+	result = vkCreateDevice(m_physicalDevice, &ci, nullptr, &m_device);
+	ThrowIfFailed(result, "vkCreateDevice Failed.");
+
+	vkGetDeviceQueue(m_device, m_gfxQueueIndex, 0, &m_deviceQueue);
+}
+
 

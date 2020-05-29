@@ -38,6 +38,7 @@ protected:
 	VkInstance m_vkInstance = VK_NULL_HANDLE;
 
 	VkPhysicalDeviceMemoryProperties m_physicalMemProps;
+	VkQueue m_deviceQueue = VK_NULL_HANDLE;
 	uint32_t m_gfxQueueIndex = ~0u;
 
 	std::unique_ptr<Swapchain> m_swapchain = VK_NULL_HANDLE;
@@ -50,6 +51,7 @@ private:
 
 	void CreateInstance();
 	void SelectGraphicsQueue();
+	void CreateDevice();
 	
 	// デバッグレポート有効化
 	void EnableDebugReport();
