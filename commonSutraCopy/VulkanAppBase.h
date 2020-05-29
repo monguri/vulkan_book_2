@@ -4,6 +4,8 @@
 #include <windows.h>
 
 #include <memory>
+#include <unordered_map>
+#include <functional>
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
@@ -14,6 +16,39 @@
 #include <vulkan/vulkan_win32.h>
 
 #include "Swapchain.h"
+
+
+template<class T>
+class VulkanObjectStore
+{
+public:
+	VulkanObjectStore(std::function<void(T)> disposer) : m_disposeFunc(disposer) {}
+
+	void CleanUp()
+	{
+		std::for_each(m_storeMap.begin(), m_storeMap.end(), [&](const std::pair<std::string, T>& v) { m_disposeFunc(v.second); });
+	}
+
+	void Register(const std::string& name, T data)
+	{
+		m_storeMap[name] = data;
+	}
+
+	T Get(const std::string& name) const
+	{
+		const std::pair<std::string, T>& it = m_storeMap.find(name);
+		if (it == m_storeMap.end())
+		{
+			return VK_NULL_HANDLE;
+		}
+
+		return it->second;
+	}
+
+private:
+	std::unordered_map<std::string, T> m_storeMap;
+	std::function<void(T)> m_disposeFunc;
+};
 
 class VulkanAppBase
 {
