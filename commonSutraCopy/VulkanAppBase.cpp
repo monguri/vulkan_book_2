@@ -123,6 +123,13 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 
 	// コマンドプールの生成
 	CreateCommandPool();
+
+	VkSurfaceKHR surface = VK_NULL_HANDLE;
+	result = glfwCreateWindowSurface(m_vkInstance, window, nullptr, &surface);
+	ThrowIfFailed(result, "glfwCreateWindowSurface Failed.");
+
+	// スワップチェインの生成
+	m_swapchain = std::make_unique<Swapchain>(m_vkInstance, m_device, surface);
 }
 
 void VulkanAppBase::Terminate()
