@@ -40,7 +40,7 @@ void Swapchain::Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, u
 	VkBool32 isSupport = VK_FALSE;
 	result = vkGetPhysicalDeviceSurfaceSupportKHR(physDev, graphicsQueueIndex, m_surface, &isSupport);
 	ThrowIfFailed(result, "vkGetPhysicalDeviceSurfaceSupportKHR Failed.");
-	if (isSupport)
+	if (isSupport == VK_FALSE)
 	{
 		throw book_util::VulkanException("vkGetPhysicalDeviceSurfaceSupportKHR: isSupport = false.");
 	}

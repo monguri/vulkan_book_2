@@ -42,6 +42,8 @@ protected:
 	uint32_t m_gfxQueueIndex = ~0u;
 	VkCommandPool m_commandPool = VK_NULL_HANDLE;
 
+	VkSemaphore m_renderCompletedSem, m_presentCompletedSem = VK_NULL_HANDLE;
+
 	std::unique_ptr<Swapchain> m_swapchain = VK_NULL_HANDLE;
 
 	GLFWwindow* m_window = nullptr;

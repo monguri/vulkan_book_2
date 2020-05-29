@@ -130,6 +130,20 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 
 	// スワップチェインの生成
 	m_swapchain = std::make_unique<Swapchain>(m_vkInstance, m_device, surface);
+	int width, height;
+	glfwGetWindowSize(window, &width, &height);
+	m_swapchain->Prepare(m_physicalDevice, m_gfxQueueIndex, uint32_t(width), uint32_t(height), format);
+
+	// セマフォの生成
+	VkSemaphoreCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	ci.pNext = nullptr;
+	ci.flags = 0;
+
+	result = vkCreateSemaphore(m_device, &ci, nullptr, &m_renderCompletedSem);
+	ThrowIfFailed(result, "vkCreateSemaphore Failed.");
+	result = vkCreateSemaphore(m_device, &ci, nullptr, &m_presentCompletedSem);
+	ThrowIfFailed(result, "vkCreateSemaphore Failed.");
 }
 
 void VulkanAppBase::Terminate()
