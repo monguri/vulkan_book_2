@@ -69,6 +69,15 @@ public:
 	virtual void Cleanup() {};
 	virtual void Render() = 0;
 
+	struct ImageObject
+	{
+		VkImage image;
+		VkDeviceMemory memory;
+		VkImageView view;
+	};
+
+	ImageObject CreateTexture(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage);
+
 private:
 	void CreateInstance();
 	void SelectGraphicsQueue();

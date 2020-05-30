@@ -16,6 +16,8 @@ public:
 
 	VkSurfaceFormatKHR GetSurfaceFormat() const { return m_selectFormat; }
 
+	VkExtent2D GetSurfaceExtent() const { return m_surfaceExtent; }
+
 private:
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
 	VkSurfaceKHR m_surface = VK_NULL_HANDLE;

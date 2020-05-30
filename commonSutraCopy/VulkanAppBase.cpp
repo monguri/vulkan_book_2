@@ -364,3 +364,63 @@ void VulkanAppBase::CreateDescriptorPool()
 	VkResult result = vkCreateDescriptorPool(m_device, &descPoolCI, nullptr, &m_descriptorPool);
 	ThrowIfFailed(result, "vkCreateDescriptorPool Failed.");
 }
+
+VulkanAppBase::ImageObject VulkanAppBase::CreateTexture(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
+{
+	ImageObject obj;
+
+	VkImageCreateInfo imageCI{};
+	imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageCI.pNext = nullptr;
+	imageCI.flags = 0;
+	imageCI.imageType = VK_IMAGE_TYPE_2D;
+	imageCI.format = format;
+	imageCI.extent.width = width;
+	imageCI.extent.height = height;
+	imageCI.extent.depth = 1;
+	imageCI.mipLevels = 1;
+	imageCI.arrayLayers = 1;
+	imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imageCI.usage = usage;
+	imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	imageCI.queueFamilyIndexCount = 0;
+	imageCI.pQueueFamilyIndices = nullptr;
+	imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VkResult result = vkCreateImage(m_device, &imageCI, nullptr, &obj.image);
+	ThrowIfFailed(result, "vkCreateImage Failed.");
+
+	VkMemoryRequirements reqs;
+	vkGetImageMemoryRequirements(m_device, obj.image, &reqs);
+
+	VkMemoryAllocateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	info.pNext = nullptr;
+	info.allocationSize = reqs.size;
+	info.memoryTypeIndex = GetMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	result = vkAllocateMemory(m_device, &info, nullptr, &obj.memory);
+	ThrowIfFailed(result, "vkAllocateMemory Failed.");
+	result = vkBindImageMemory(m_device, obj.image, obj.memory, 0);
+	ThrowIfFailed(result, "vkBindImageMemory Failed.");
+
+	VkImageAspectFlags imageAspect = VK_IMAGE_ASPECT_COLOR_BIT;
+	if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+	{
+		imageAspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+	}
+
+	VkImageViewCreateInfo viewCI{};
+	viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewCI.pNext = nullptr;
+	viewCI.flags = 0;
+	viewCI.image = obj.image;
+	viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewCI.format = imageCI.format;
+	viewCI.components = book_util::DefaultComponentMapping();
+	viewCI.subresourceRange = { imageAspect, 0, 1, 0, 1 };
+	result = vkCreateImageView(m_device, &viewCI, nullptr, &obj.view);
+	ThrowIfFailed(result, "vkCreateImageView Failed.");
+
+	return obj;
+}
+
