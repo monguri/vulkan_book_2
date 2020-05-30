@@ -14,6 +14,8 @@ private:
 	VkRenderPass m_renderPass;
 	ImageObject m_depthBuffer;
 	std::vector<VkFramebuffer> m_framebuffers;
+	std::vector<VkFence> m_commandFences;
+	std::vector<VkCommandBuffer> m_commandBuffers;
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();

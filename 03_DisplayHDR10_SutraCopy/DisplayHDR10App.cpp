@@ -12,6 +12,31 @@ void DisplayHDR10App::Prepare()
 
 	// フレームバッファを準備
 	PrepareFramebuffers();
+
+	uint32_t imageCount = m_swapchain->GetImageCount();
+
+	m_commandFences.resize(imageCount);
+	VkFenceCreateInfo fenceCI{};
+	fenceCI.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceCI.pNext = nullptr;
+	fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	for (uint32_t i = 0; i < imageCount; i++)
+	{
+		VkResult result = vkCreateFence(m_device, &fenceCI, nullptr, &m_commandFences[i]);
+		ThrowIfFailed(result, "vkCreateFence Failed.");
+	}
+
+	m_commandBuffers.resize(imageCount);
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.pNext = nullptr;
+	allocInfo.commandPool = m_commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = imageCount;
+
+	VkResult result = vkAllocateCommandBuffers(m_device, &allocInfo, m_commandBuffers.data());
+	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
 }
 
 void DisplayHDR10App::Cleanup()
