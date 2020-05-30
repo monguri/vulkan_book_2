@@ -8,7 +8,7 @@ void DisplayHDR10App::Prepare()
 
 	// デプスバッファを準備する
 	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-	m_depthBuffer = CreateTexture(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	m_depthBuffer = CreateImage(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
 	// フレームバッファを準備
 	PrepareFramebuffers();
@@ -20,6 +20,25 @@ void DisplayHDR10App::Cleanup()
 
 void DisplayHDR10App::Render()
 {
+}
+
+bool DisplayHDR10App::OnSizeChanged(uint32_t width, uint32_t height)
+{
+	bool result = VulkanAppBase::OnSizeChanged(width, height);
+	if (result)
+	{
+		DestroyImage(m_depthBuffer);
+		DestroyFramebuffers(uint32_t(m_framebuffers.size()), m_framebuffers.data());
+
+		// デプスバッファを再生成
+		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+		m_depthBuffer = CreateImage(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+		// フレームバッファを準備
+		PrepareFramebuffers();
+	}
+
+	return result;
 }
 
 void DisplayHDR10App::CreateRenderPass()

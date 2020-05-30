@@ -8,6 +8,8 @@ public:
 	virtual void Cleanup() override;
 	virtual void Render() override;
 
+	virtual bool OnSizeChanged(uint32_t width, uint32_t height) override;
+
 private:
 	VkRenderPass m_renderPass;
 	ImageObject m_depthBuffer;

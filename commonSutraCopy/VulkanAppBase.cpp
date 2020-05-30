@@ -365,7 +365,7 @@ void VulkanAppBase::CreateDescriptorPool()
 	ThrowIfFailed(result, "vkCreateDescriptorPool Failed.");
 }
 
-VulkanAppBase::ImageObject VulkanAppBase::CreateTexture(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
+VulkanAppBase::ImageObject VulkanAppBase::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
 {
 	ImageObject obj;
 
@@ -424,6 +424,16 @@ VulkanAppBase::ImageObject VulkanAppBase::CreateTexture(uint32_t width, uint32_t
 	return obj;
 }
 
+void VulkanAppBase::DestroyImage(const VulkanAppBase::ImageObject& imageObj)
+{
+	vkFreeMemory(m_device, imageObj.memory, nullptr);
+	vkDestroyImage(m_device, imageObj.image, nullptr);
+	if (imageObj.view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView(m_device, imageObj.view, nullptr);
+	}
+}
+
 VkFramebuffer VulkanAppBase::CreateFramebuffer(VkRenderPass renderPass, uint32_t width, uint32_t height, uint32_t viewCount, VkImageView* views)
 {
 	VkFramebufferCreateInfo fbCI{};
@@ -441,5 +451,13 @@ VkFramebuffer VulkanAppBase::CreateFramebuffer(VkRenderPass renderPass, uint32_t
 	VkResult result = vkCreateFramebuffer(m_device, &fbCI, nullptr, &framebuffer);
 	ThrowIfFailed(result, "vkCreateFramebuffer Failed.");
 	return framebuffer;
+}
+
+void VulkanAppBase::DestroyFramebuffers(uint32_t count, VkFramebuffer* framebuffers)
+{
+	for (uint32_t i = 0; i < count; i++)
+	{
+		vkDestroyFramebuffer(m_device, framebuffers[i], nullptr);
+	}
 }
 
