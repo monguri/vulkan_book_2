@@ -17,6 +17,8 @@ public:
 	VkSurfaceFormatKHR GetSurfaceFormat() const { return m_selectFormat; }
 
 	VkExtent2D GetSurfaceExtent() const { return m_surfaceExtent; }
+	uint32_t GetImageCount() const { return uint32_t(m_images.size()); }
+	VkImageView GetImageView(int index) const { return m_imageViews[index]; }
 
 private:
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

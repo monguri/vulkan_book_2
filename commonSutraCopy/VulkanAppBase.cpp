@@ -424,3 +424,22 @@ VulkanAppBase::ImageObject VulkanAppBase::CreateTexture(uint32_t width, uint32_t
 	return obj;
 }
 
+VkFramebuffer VulkanAppBase::CreateFramebuffer(VkRenderPass renderPass, uint32_t width, uint32_t height, uint32_t viewCount, VkImageView* views)
+{
+	VkFramebufferCreateInfo fbCI{};
+	fbCI.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	fbCI.pNext = nullptr;
+	fbCI.flags = 0;
+	fbCI.renderPass = renderPass;
+	fbCI.attachmentCount = viewCount;
+	fbCI.pAttachments = views;
+	fbCI.width = width;
+	fbCI.height = height;
+	fbCI.layers = 1;
+
+	VkFramebuffer framebuffer = nullptr;
+	VkResult result = vkCreateFramebuffer(m_device, &fbCI, nullptr, &framebuffer);
+	ThrowIfFailed(result, "vkCreateFramebuffer Failed.");
+	return framebuffer;
+}
+

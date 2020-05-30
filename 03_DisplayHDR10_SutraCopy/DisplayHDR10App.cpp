@@ -5,6 +5,13 @@
 void DisplayHDR10App::Prepare()
 {
 	CreateRenderPass();
+
+	// デプスバッファを準備する
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+	m_depthBuffer = CreateTexture(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+	// フレームバッファを準備
+	PrepareFramebuffers();
 }
 
 void DisplayHDR10App::Cleanup()
@@ -76,5 +83,21 @@ void DisplayHDR10App::CreateRenderPass()
 
 	VkResult result = vkCreateRenderPass(m_device, &rpCI, nullptr, &m_renderPass);
 	ThrowIfFailed(result, "vkCreateRenderPass Failed.");
+}
+
+void DisplayHDR10App::PrepareFramebuffers()
+{
+	uint32_t imageCount = m_swapchain->GetImageCount();
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+
+	m_framebuffers.resize(imageCount);
+	for (uint32_t i = 0; i < imageCount; i++)
+	{
+		std::vector<VkImageView> views;
+		views.push_back(m_swapchain->GetImageView(i));
+		views.push_back(m_depthBuffer.view);
+
+		m_framebuffers[i] = CreateFramebuffer(m_renderPass, extent.width, extent.height, uint32_t(views.size()), views.data());
+	}
 }
 

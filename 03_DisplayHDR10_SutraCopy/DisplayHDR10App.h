@@ -10,7 +10,10 @@ public:
 
 private:
 	VkRenderPass m_renderPass;
+	ImageObject m_depthBuffer;
+	std::vector<VkFramebuffer> m_framebuffers;
 
 	void CreateRenderPass();
+	void PrepareFramebuffers();
 };
 
