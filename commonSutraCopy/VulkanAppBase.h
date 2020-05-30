@@ -67,6 +67,20 @@ public:
 
 	virtual void Render() = 0;
 
+private:
+	void CreateInstance();
+	void SelectGraphicsQueue();
+	void CreateDevice();
+	void CreateCommandPool();
+	void CreateDescriptorPool();
+	
+	// デバッグレポート有効化
+	void EnableDebugReport();
+	PFN_vkCreateDebugReportCallbackEXT m_vkCreateDebugReportCallbackEXT = VK_NULL_HANDLE;
+	PFN_vkDebugReportMessageEXT m_vkDebugReportMessageEXT = VK_NULL_HANDLE;
+	PFN_vkDestroyDebugReportCallbackEXT m_vkDestroyDebugReportCallbackEXT = VK_NULL_HANDLE;
+	VkDebugReportCallbackEXT m_debugReport = VK_NULL_HANDLE;
+
 protected:
 	VkDevice m_device = VK_NULL_HANDLE;
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
@@ -94,19 +108,5 @@ protected:
 	std::unique_ptr<RenderPassRegistry> m_renderPassStore;
 	std::unique_ptr<DescriptorSetLayoutManager> m_descriptorSetLayoutStore;
 	std::unique_ptr<PipelineLayoutManager> m_pipelineLayoutStore;
-
-private:
-	void CreateInstance();
-	void SelectGraphicsQueue();
-	void CreateDevice();
-	void CreateCommandPool();
-	void CreateDescriptorPool();
-	
-	// デバッグレポート有効化
-	void EnableDebugReport();
-	PFN_vkCreateDebugReportCallbackEXT m_vkCreateDebugReportCallbackEXT = VK_NULL_HANDLE;
-	PFN_vkDebugReportMessageEXT m_vkDebugReportMessageEXT = VK_NULL_HANDLE;
-	PFN_vkDestroyDebugReportCallbackEXT m_vkDestroyDebugReportCallbackEXT = VK_NULL_HANDLE;
-	VkDebugReportCallbackEXT m_debugReport = VK_NULL_HANDLE;
 };
 
