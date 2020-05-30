@@ -85,10 +85,17 @@ protected:
 
 	GLFWwindow* m_window = nullptr;
 
-private:
 	bool m_isMinimizedWindow = false;
 	bool m_isFullscreen = false;
 
+	using RenderPassRegistry = VulkanObjectStore<VkRenderPass>;
+	using DescriptorSetLayoutManager = VulkanObjectStore<VkDescriptorSetLayout>;
+	using PipelineLayoutManager = VulkanObjectStore<VkPipelineLayout>;
+	std::unique_ptr<RenderPassRegistry> m_renderPassStore;
+	std::unique_ptr<DescriptorSetLayoutManager> m_descriptorSetLayoutStore;
+	std::unique_ptr<PipelineLayoutManager> m_pipelineLayoutStore;
+
+private:
 	void CreateInstance();
 	void SelectGraphicsQueue();
 	void CreateDevice();

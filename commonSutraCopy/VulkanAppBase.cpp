@@ -147,6 +147,18 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 
 	// ディスクリプタプールの生成
 	CreateDescriptorPool();
+
+	m_renderPassStore = std::make_unique<RenderPassRegistry>([&](VkRenderPass renderPass) {
+		vkDestroyRenderPass(m_device, renderPass, nullptr);
+	});
+
+	m_descriptorSetLayoutStore = std::make_unique<DescriptorSetLayoutManager>([&](VkDescriptorSetLayout layout) {
+		vkDestroyDescriptorSetLayout(m_device, layout, nullptr);
+	});
+
+	m_pipelineLayoutStore = std::make_unique<PipelineLayoutManager>([&](VkPipelineLayout layout) {
+		vkDestroyPipelineLayout(m_device, layout, nullptr);
+	});
 }
 
 void VulkanAppBase::Terminate()
