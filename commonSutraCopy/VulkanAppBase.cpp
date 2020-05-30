@@ -165,7 +165,40 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 
 void VulkanAppBase::Terminate()
 {
+	if (m_device != VK_NULL_HANDLE)
+	{
+		VkResult result = vkDeviceWaitIdle(m_device);
+		ThrowIfFailed(result, "vkDeviceWaitIdle Failed.");
+	}
+
 	Cleanup();
+
+	if (m_swapchain != nullptr)
+	{
+		m_swapchain->Cleanup();
+	}
+
+#ifdef _DEBUG
+	DisableDebugReport();
+#endif
+
+	m_renderPassStore->CleanUp();
+	m_descriptorSetLayoutStore->CleanUp();
+	m_pipelineLayoutStore->CleanUp();
+	vkDestroySemaphore(m_device, m_presentCompletedSem, nullptr);
+	vkDestroySemaphore(m_device, m_renderCompletedSem, nullptr);
+
+	vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
+	vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+	vkDestroyDevice(m_device, nullptr);
+	vkDestroyInstance(m_vkInstance, nullptr);
+
+	m_presentCompletedSem = VK_NULL_HANDLE;
+	m_renderCompletedSem = VK_NULL_HANDLE;
+	m_descriptorPool = VK_NULL_HANDLE;
+	m_commandPool = VK_NULL_HANDLE;
+	m_device = VK_NULL_HANDLE;
+	m_vkInstance = VK_NULL_HANDLE;
 }
 
 void VulkanAppBase::CreateInstance()
@@ -244,6 +277,14 @@ void VulkanAppBase::EnableDebugReport()
 
 	VkResult result = m_vkCreateDebugReportCallbackEXT(m_vkInstance, &drcCI, nullptr, &m_debugReport);
 	ThrowIfFailed(result, "vkCreateDebugReportCallbackEXT Failed.");
+}
+
+void VulkanAppBase::DisableDebugReport()
+{
+	if (m_vkDestroyDebugReportCallbackEXT != nullptr)
+	{
+		m_vkDestroyDebugReportCallbackEXT(m_vkInstance, m_debugReport, nullptr);
+	}
 }
 
 void VulkanAppBase::CreateDevice()
