@@ -65,9 +65,9 @@ public:
 	void Initialize(GLFWwindow* window, VkFormat format, bool isFullscreen);
 	void Terminate();
 
-	virtual void Render() = 0;
 	virtual void Prepare() {};
 	virtual void Cleanup() {};
+	virtual void Render() = 0;
 
 private:
 	void CreateInstance();
