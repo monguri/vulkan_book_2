@@ -66,6 +66,8 @@ public:
 	void Terminate();
 
 	virtual void Render() = 0;
+	virtual void Prepare() {};
+	virtual void Cleanup() {};
 
 private:
 	void CreateInstance();

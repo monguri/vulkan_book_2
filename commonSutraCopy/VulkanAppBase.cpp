@@ -159,10 +159,13 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 	m_pipelineLayoutStore = std::make_unique<PipelineLayoutManager>([&](VkPipelineLayout layout) {
 		vkDestroyPipelineLayout(m_device, layout, nullptr);
 	});
+
+	Prepare();
 }
 
 void VulkanAppBase::Terminate()
 {
+	Cleanup();
 }
 
 void VulkanAppBase::CreateInstance()
