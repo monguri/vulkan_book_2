@@ -365,6 +365,40 @@ void VulkanAppBase::CreateDescriptorPool()
 	ThrowIfFailed(result, "vkCreateDescriptorPool Failed.");
 }
 
+VulkanAppBase::BufferObject VulkanAppBase::CreateBuffer(uint32_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props)
+{
+	BufferObject obj;
+
+	VkBufferCreateInfo bufferCI{};
+	bufferCI.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCI.pNext = nullptr;
+	bufferCI.flags = 0;
+	bufferCI.size = size;
+	bufferCI.usage = usage;
+	bufferCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	bufferCI.queueFamilyIndexCount = 0;
+	bufferCI.pQueueFamilyIndices = nullptr;
+	VkResult result = vkCreateBuffer(m_device, &bufferCI, nullptr, &obj.buffer);
+	ThrowIfFailed(result, "vkCreateBuffer Failed.");
+
+	// ÉÅÉÇÉäó ÇÃéZèo
+	VkMemoryRequirements reqs;
+	vkGetBufferMemoryRequirements(m_device, obj.buffer, &reqs);
+
+	VkMemoryAllocateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	info.pNext = nullptr;
+	info.allocationSize = reqs.size;
+	info.memoryTypeIndex = GetMemoryTypeIndex(reqs.memoryTypeBits, props);
+	result = vkAllocateMemory(m_device, &info, nullptr, &obj.memory);
+	ThrowIfFailed(result, "vkAllocateMemory Failed.");
+
+	result = vkBindBufferMemory(m_device, obj.buffer, obj.memory, 0);
+	ThrowIfFailed(result, "vkBindBufferMemory Failed.");
+
+	return obj;
+}
+
 VulkanAppBase::ImageObject VulkanAppBase::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
 {
 	ImageObject obj;

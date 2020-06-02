@@ -69,6 +69,12 @@ public:
 	virtual void Cleanup() {};
 	virtual void Render() = 0;
 
+	struct BufferObject
+	{
+		VkBuffer buffer;
+		VkDeviceMemory memory;
+	};
+
 	struct ImageObject
 	{
 		VkImage image;
@@ -76,6 +82,7 @@ public:
 		VkImageView view;
 	};
 
+	BufferObject CreateBuffer(uint32_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props);
 	ImageObject CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage);
 	void DestroyImage(const ImageObject& imageObj);
 	VkFramebuffer CreateFramebuffer(VkRenderPass renderPass, uint32_t width, uint32_t height, uint32_t viewCount, VkImageView* views);
