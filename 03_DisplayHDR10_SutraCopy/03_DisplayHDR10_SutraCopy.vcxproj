@@ -148,6 +148,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\commonSutraCopy\Swapchain.h" />
+    <ClInclude Include="..\commonSutraCopy\TeapotModel.h" />
     <ClInclude Include="..\commonSutraCopy\VulkanAppBase.h" />
     <ClInclude Include="..\commonSutraCopy\VulkanBookUtil.h" />
     <ClInclude Include="DisplayHDR10App.h" />

@@ -27,6 +27,9 @@
     <ClInclude Include="..\commonSutraCopy\Swapchain.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="..\commonSutraCopy\TeapotModel.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DisplayHDR10App.cpp">
