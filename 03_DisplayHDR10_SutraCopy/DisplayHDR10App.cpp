@@ -41,6 +41,19 @@ void DisplayHDR10App::Prepare()
 
 void DisplayHDR10App::Cleanup()
 {
+	DestroyImage(m_depthBuffer);
+	uint32_t count = uint32_t(m_framebuffers.size());
+	DestroyFramebuffers(count, m_framebuffers.data());
+	m_framebuffers.clear();
+
+	for (const VkFence& f : m_commandFences)
+	{
+		vkDestroyFence(m_device, f, nullptr);
+	}
+	m_commandFences.clear();
+
+	vkFreeCommandBuffers(m_device, m_commandPool, uint32_t(m_commandBuffers.size()), m_commandBuffers.data());
+	m_commandBuffers.clear();
 }
 
 void DisplayHDR10App::Render()
