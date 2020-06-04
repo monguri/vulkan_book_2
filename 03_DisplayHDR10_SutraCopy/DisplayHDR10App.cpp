@@ -1,5 +1,6 @@
 #include "DisplayHDR10App.h"
 #include "VulkanBookUtil.h"
+#include "TeapotModel.h"
 #include <array>
 
 void DisplayHDR10App::Prepare()
@@ -37,6 +38,8 @@ void DisplayHDR10App::Prepare()
 
 	VkResult result = vkAllocateCommandBuffers(m_device, &allocInfo, m_commandBuffers.data());
 	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
+
+	PrepareTeapot();
 }
 
 void DisplayHDR10App::Cleanup()
@@ -156,5 +159,28 @@ void DisplayHDR10App::PrepareFramebuffers()
 
 		m_framebuffers[i] = CreateFramebuffer(m_renderPass, extent.width, extent.height, uint32_t(views.size()), views.data());
 	}
+}
+
+void DisplayHDR10App::PrepareTeapot()
+{
+	uint32_t bufferSizeVB = uint32_t(sizeof(TeapotModel::TeapotVerticesPN));
+	VkBufferUsageFlags usageVB = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	VkMemoryPropertyFlags srcMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	VkMemoryPropertyFlags dstMemoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	const BufferObject& stageVB = CreateBuffer(bufferSizeVB, usageVB, srcMemoryProps);
+	const BufferObject& targetVB = CreateBuffer(bufferSizeVB, usageVB, dstMemoryProps);
+
+	uint32_t bufferSizeIB = uint32_t(sizeof(TeapotModel::TeapotIndices));
+	VkBufferUsageFlags usageIB = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	const BufferObject& stageIB = CreateBuffer(bufferSizeIB, usageIB, srcMemoryProps);
+	const BufferObject& targetIB = CreateBuffer(bufferSizeIB, usageIB, dstMemoryProps);
+
+	void* p = nullptr;
+	vkMapMemory(m_device, stageVB.memory, 0, VK_WHOLE_SIZE, 0, &p);
+	memcpy(p, TeapotModel::TeapotVerticesPN, bufferSizeVB);
+	vkUnmapMemory(m_device, stageVB.memory);
+	vkMapMemory(m_device, stageIB.memory, 0, VK_WHOLE_SIZE, 0, &p);
+	memcpy(p, TeapotModel::TeapotIndices, bufferSizeIB);
+	vkUnmapMemory(m_device, stageIB.memory);
 }
 

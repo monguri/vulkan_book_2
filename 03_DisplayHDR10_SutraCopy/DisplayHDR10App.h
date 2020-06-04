@@ -19,5 +19,6 @@ private:
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();
+	void PrepareTeapot();
 };
 
