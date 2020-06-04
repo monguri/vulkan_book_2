@@ -87,6 +87,8 @@ public:
 	void DestroyImage(const ImageObject& imageObj);
 	VkFramebuffer CreateFramebuffer(VkRenderPass renderPass, uint32_t width, uint32_t height, uint32_t viewCount, VkImageView* views);
 	void DestroyFramebuffers(uint32_t count, VkFramebuffer* framebuffers);
+	VkCommandBuffer CreateCommandBuffer();
+	void FinishCommandBuffer(VkCommandBuffer command);
 
 private:
 	void CreateInstance();

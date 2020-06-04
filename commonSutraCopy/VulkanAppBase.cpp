@@ -495,3 +495,58 @@ void VulkanAppBase::DestroyFramebuffers(uint32_t count, VkFramebuffer* framebuff
 	}
 }
 
+VkCommandBuffer VulkanAppBase::CreateCommandBuffer()
+{
+	VkCommandBuffer command;
+
+	VkCommandBufferAllocateInfo commandAI{};
+	commandAI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	commandAI.pNext = nullptr;
+	commandAI.commandPool = m_commandPool;
+	commandAI.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	commandAI.commandBufferCount = 1;
+	VkResult result = vkAllocateCommandBuffers(m_device, &commandAI, &command);
+	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+	result = vkBeginCommandBuffer(command, &beginInfo);
+	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
+
+	return command;
+}
+
+void VulkanAppBase::FinishCommandBuffer(VkCommandBuffer command)
+{
+	VkResult result = vkEndCommandBuffer(command);
+	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
+
+	VkFenceCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	ci.pNext = nullptr;
+	ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	VkFence fence = VK_NULL_HANDLE;
+	result = vkCreateFence(m_device, &ci, nullptr, &fence);
+	ThrowIfFailed(result, "vkCreateFence Failed.");
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.waitSemaphoreCount = 0;
+	submitInfo.pWaitSemaphores = nullptr;
+	submitInfo.pWaitDstStageMask = nullptr;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &command;
+	submitInfo.signalSemaphoreCount = 0;
+	submitInfo.pSignalSemaphores = nullptr;
+
+	result = vkQueueSubmit(m_deviceQueue, 1, &submitInfo, fence);
+	ThrowIfFailed(result, "vkQueueSubmit Failed.");
+
+	result = vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
+	ThrowIfFailed(result, "vkWaitForFences Failed.");
+
+	vkDestroyFence(m_device, fence, nullptr);
+}
+
