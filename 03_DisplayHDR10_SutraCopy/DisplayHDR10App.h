@@ -17,6 +17,7 @@ private:
 	std::vector<VkFence> m_commandFences;
 	std::vector<VkCommandBuffer> m_commandBuffers;
 	VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
+	std::vector<VkDescriptorSet> m_descriptorSets;
 
 	struct ModelData
 	{

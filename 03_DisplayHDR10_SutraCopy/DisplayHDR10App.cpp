@@ -44,6 +44,14 @@ void DisplayHDR10App::Prepare()
 
 void DisplayHDR10App::Cleanup()
 {
+	DestroyBuffer(m_teapot.vertexBuffer);
+	DestroyBuffer(m_teapot.indexBuffer);
+
+	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_descriptorSets.size()), m_descriptorSets.data());
+	m_descriptorSets.clear();
+
+	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
+
 	DestroyImage(m_depthBuffer);
 	uint32_t count = uint32_t(m_framebuffers.size());
 	DestroyFramebuffers(count, m_framebuffers.data());
@@ -222,5 +230,21 @@ void DisplayHDR10App::PrepareTeapot()
 	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
 
 	// ディスクリプタセット
+	VkDescriptorSetAllocateInfo descriptorSetAI{};
+	descriptorSetAI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptorSetAI.pNext = nullptr;
+	descriptorSetAI.descriptorPool = m_descriptorPool;
+	descriptorSetAI.descriptorSetCount = 1;
+	descriptorSetAI.pSetLayouts = &m_descriptorSetLayout;
+
+	uint32_t imageCount = m_swapchain->GetImageCount();
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+		result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
+		ThrowIfFailed(result, "vkAllocateDescriptorSets Failed.");
+
+		m_descriptorSets.push_back(descriptorSet);
+	}
 }
 
