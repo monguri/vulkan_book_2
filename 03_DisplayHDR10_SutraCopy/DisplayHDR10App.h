@@ -16,6 +16,16 @@ private:
 	std::vector<VkFramebuffer> m_framebuffers;
 	std::vector<VkFence> m_commandFences;
 	std::vector<VkCommandBuffer> m_commandBuffers;
+	VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
+
+	struct ModelData
+	{
+		BufferObject vertexBuffer;
+		BufferObject indexBuffer;
+		uint32_t vertexCount;
+		uint32_t indexCount;
+	};
+	ModelData m_teapot;
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();

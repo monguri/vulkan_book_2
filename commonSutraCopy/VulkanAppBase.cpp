@@ -458,6 +458,12 @@ VulkanAppBase::ImageObject VulkanAppBase::CreateImage(uint32_t width, uint32_t h
 	return obj;
 }
 
+void VulkanAppBase::DestroyBuffer(const VulkanAppBase::BufferObject& bufferObj)
+{
+	vkDestroyBuffer(m_device, bufferObj.buffer, nullptr);
+	vkFreeMemory(m_device, bufferObj.memory, nullptr);
+}
+
 void VulkanAppBase::DestroyImage(const VulkanAppBase::ImageObject& imageObj)
 {
 	vkFreeMemory(m_device, imageObj.memory, nullptr);

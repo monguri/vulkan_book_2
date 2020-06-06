@@ -84,8 +84,9 @@ public:
 
 	BufferObject CreateBuffer(uint32_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props);
 	ImageObject CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage);
-	void DestroyImage(const ImageObject& imageObj);
 	VkFramebuffer CreateFramebuffer(VkRenderPass renderPass, uint32_t width, uint32_t height, uint32_t viewCount, VkImageView* views);
+	void DestroyBuffer(const BufferObject& bufferObj);
+	void DestroyImage(const ImageObject& imageObj);
 	void DestroyFramebuffers(uint32_t count, VkFramebuffer* framebuffers);
 	VkCommandBuffer CreateCommandBuffer();
 	void FinishCommandBuffer(VkCommandBuffer command);

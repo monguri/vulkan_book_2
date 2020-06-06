@@ -163,6 +163,7 @@ void DisplayHDR10App::PrepareFramebuffers()
 
 void DisplayHDR10App::PrepareTeapot()
 {
+	// ステージ用のVBとIB、ターゲットのVBとIBの用意
 	uint32_t bufferSizeVB = uint32_t(sizeof(TeapotModel::TeapotVerticesPN));
 	VkBufferUsageFlags usageVB = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	VkMemoryPropertyFlags srcMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -175,6 +176,7 @@ void DisplayHDR10App::PrepareTeapot()
 	const BufferObject& stageIB = CreateBuffer(bufferSizeIB, usageIB, srcMemoryProps);
 	const BufferObject& targetIB = CreateBuffer(bufferSizeIB, usageIB, dstMemoryProps);
 
+	// ステージ用のVBとIBにデータをコピー
 	void* p = nullptr;
 	vkMapMemory(m_device, stageVB.memory, 0, VK_WHOLE_SIZE, 0, &p);
 	memcpy(p, TeapotModel::TeapotVerticesPN, bufferSizeVB);
@@ -182,5 +184,43 @@ void DisplayHDR10App::PrepareTeapot()
 	vkMapMemory(m_device, stageIB.memory, 0, VK_WHOLE_SIZE, 0, &p);
 	memcpy(p, TeapotModel::TeapotIndices, bufferSizeIB);
 	vkUnmapMemory(m_device, stageIB.memory);
+
+	// ターゲットのVBとIBにデータをコピーするコマンドの実行
+	VkCommandBuffer command = CreateCommandBuffer();
+	VkBufferCopy copyRegionVB{}, copyRegionIB{};
+	copyRegionVB.size = bufferSizeVB;
+	copyRegionIB.size = bufferSizeIB;
+	vkCmdCopyBuffer(command, stageVB.buffer, targetVB.buffer, 1, &copyRegionVB);
+	vkCmdCopyBuffer(command, stageIB.buffer, targetIB.buffer, 1, &copyRegionIB);
+	FinishCommandBuffer(command);
+	vkFreeCommandBuffers(m_device, m_commandPool, 1, &command);
+
+	m_teapot.vertexBuffer = targetVB;
+	m_teapot.indexBuffer = targetIB;
+	m_teapot.indexCount = _countof(TeapotModel::TeapotIndices);
+	m_teapot.vertexCount = _countof(TeapotModel::TeapotVerticesPN);
+
+	DestroyBuffer(stageVB);
+	DestroyBuffer(stageIB);
+
+	// ディスクリプタセットレイアウト
+	VkDescriptorSetLayoutBinding descSetLayoutBindings[1];
+
+	VkDescriptorSetLayoutBinding bindingUBO{};
+	bindingUBO.binding = 0;
+	bindingUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	bindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	bindingUBO.descriptorCount = 1;
+	descSetLayoutBindings[0] = bindingUBO;
+
+	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
+	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descSetLayoutCI.pNext = nullptr;
+	descSetLayoutCI.bindingCount = _countof(descSetLayoutBindings);
+	descSetLayoutCI.pBindings = descSetLayoutBindings;
+	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &m_descriptorSetLayout);
+	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
+
+	// ディスクリプタセット
 }
 
