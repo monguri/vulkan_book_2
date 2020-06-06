@@ -246,5 +246,36 @@ void DisplayHDR10App::PrepareTeapot()
 
 		m_descriptorSets.push_back(descriptorSet);
 	}
+
+	// 定数バッファの準備
+	VkMemoryPropertyFlags uboMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	m_uniformBuffers.resize(imageCount);
+
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		m_uniformBuffers[i] = CreateBuffer(sizeof(ShaderParameters), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
+	}
+
+	for (size_t i = 0; i < imageCount; ++i)
+	{
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = m_uniformBuffers[i].buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = VK_WHOLE_SIZE;
+
+		VkWriteDescriptorSet writeDescSet{};
+		writeDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeDescSet.pNext = nullptr;
+		writeDescSet.dstSet = m_descriptorSets[i],
+		writeDescSet.dstBinding = 0;
+		writeDescSet.dstArrayElement = 0;
+		writeDescSet.descriptorCount = 1;
+		writeDescSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writeDescSet.pImageInfo = nullptr;
+		writeDescSet.pBufferInfo = &bufferInfo;
+		writeDescSet.pTexelBufferView = nullptr;
+
+		vkUpdateDescriptorSets(m_device, 1, &writeDescSet, 0, nullptr);
+	}
 }
 

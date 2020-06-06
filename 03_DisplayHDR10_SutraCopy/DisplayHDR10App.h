@@ -1,5 +1,6 @@
 #pragma once
 #include "VulkanAppBase.h"
+#include <glm/glm.hpp>
 
 class DisplayHDR10App : public VulkanAppBase
 {
@@ -27,6 +28,17 @@ private:
 		uint32_t indexCount;
 	};
 	ModelData m_teapot;
+
+	struct ShaderParameters
+	{
+		glm::mat4 mtxWorld;
+		glm::mat4 mtxView;
+		glm::mat4 mtxProj;
+		glm::vec4 lightPos;
+		glm::vec4 cameraPos;
+	};
+
+	std::vector<BufferObject> m_uniformBuffers;
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();
