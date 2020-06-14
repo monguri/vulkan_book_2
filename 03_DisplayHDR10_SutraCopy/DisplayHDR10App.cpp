@@ -51,6 +51,8 @@ void DisplayHDR10App::Prepare()
 	pipelineLayoutCI.pPushConstantRanges = nullptr;
 	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLyaout);
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
+
+	CreatePipeline();
 }
 
 void DisplayHDR10App::Cleanup()
@@ -61,6 +63,7 @@ void DisplayHDR10App::Cleanup()
 	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_descriptorSets.size()), m_descriptorSets.data());
 	m_descriptorSets.clear();
 
+	vkDestroyPipeline(m_device, m_pipeline, nullptr);
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 	vkDestroyPipelineLayout(m_device, m_pipelineLyaout, nullptr);
 
@@ -289,5 +292,225 @@ void DisplayHDR10App::PrepareTeapot()
 
 		vkUpdateDescriptorSets(m_device, 1, &writeDescSet, 0, nullptr);
 	}
+}
+
+void DisplayHDR10App::CreatePipeline()
+{
+	// 頂点の入力の設定
+	uint32_t stride = uint32_t(sizeof(TeapotModel::Vertex));
+	VkVertexInputBindingDescription vibDesc{};
+	vibDesc.binding = 0;
+	vibDesc.stride = stride;
+	vibDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	std::array<VkVertexInputAttributeDescription, 2> inputAttribs{};
+	inputAttribs[0].location = 0;
+	inputAttribs[0].binding = 0;
+	inputAttribs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	inputAttribs[0].offset = offsetof(TeapotModel::Vertex, Position);
+	inputAttribs[1].location = 1;
+	inputAttribs[1].binding = 0;
+	inputAttribs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	inputAttribs[1].offset = offsetof(TeapotModel::Vertex, Position);
+
+	VkPipelineVertexInputStateCreateInfo pipelineVisCI{};
+	pipelineVisCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	pipelineVisCI.pNext = nullptr;
+	pipelineVisCI.flags = 0;
+	pipelineVisCI.vertexBindingDescriptionCount = 1;
+	pipelineVisCI.pVertexBindingDescriptions = &vibDesc;
+	pipelineVisCI.vertexAttributeDescriptionCount = uint32_t(inputAttribs.size());
+	pipelineVisCI.pVertexAttributeDescriptions = inputAttribs.data();
+
+	const VkPipelineColorBlendAttachmentState& blendAttachmentState = book_util::GetOpaqueColorBlendAttachmentState();
+
+	VkPipelineColorBlendStateCreateInfo colorBlendStateCI{};
+	colorBlendStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendStateCI.pNext = nullptr;
+	colorBlendStateCI.flags = 0;
+	colorBlendStateCI.logicOpEnable = VK_FALSE;
+	colorBlendStateCI.logicOp = VK_LOGIC_OP_CLEAR;
+	colorBlendStateCI.attachmentCount = 1;
+	colorBlendStateCI.pAttachments = &blendAttachmentState;
+	colorBlendStateCI.blendConstants[0] = 0.0f;
+	colorBlendStateCI.blendConstants[1] = 0.0f;
+	colorBlendStateCI.blendConstants[2] = 0.0f;
+	colorBlendStateCI.blendConstants[3] = 0.0f;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCI{};
+	inputAssemblyCI.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssemblyCI.pNext = nullptr;
+	inputAssemblyCI.flags = 0;
+	inputAssemblyCI.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssemblyCI.primitiveRestartEnable = VK_FALSE;
+
+	VkPipelineMultisampleStateCreateInfo multisampleCI{};
+	multisampleCI.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampleCI.pNext = nullptr;
+	multisampleCI.flags = 0;
+	multisampleCI.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleCI.sampleShadingEnable = VK_FALSE;
+	multisampleCI.minSampleShading = 0.0f;
+	multisampleCI.pSampleMask = nullptr;
+	multisampleCI.alphaToCoverageEnable = VK_FALSE;
+	multisampleCI.alphaToOneEnable = VK_FALSE;
+	
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+
+	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
+
+	VkOffset2D offset{};
+	offset.x = 0;
+	offset.y = 0;
+	VkRect2D scissor{};
+	scissor.offset = offset;
+	scissor.extent = extent;
+
+	VkPipelineViewportStateCreateInfo viewportCI{};
+	viewportCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportCI.pNext = nullptr;
+	viewportCI.flags = 0;
+	viewportCI.viewportCount = 1;
+	viewportCI.pViewports = &viewport;
+	viewportCI.scissorCount = 1;
+	viewportCI.pScissors = &scissor;
+
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStages
+	{
+		book_util::LoadShader(m_device, "shaderVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
+		book_util::LoadShader(m_device, "shaderFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+	};
+
+	const VkPipelineRasterizationStateCreateInfo& rasterizerState = book_util::GetDefaultRasterizerState();
+
+	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
+
+	
+
+
+	// TODO:続き
+	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
+	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCI.pNext = nullptr;
+	pipelineLayoutCI.flags = 0;
+	pipelineLayoutCI.setLayoutCount = 1;
+	pipelineLayoutCI.pSetLayouts = &m_descriptorSetLayout;
+	VkResult result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
+	checkResult(result);
+
+	// 不透明用: パイプラインの構築
+	{
+		// ブレンディングの設定
+		const int32_t colorWriteAll = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		VkPipelineColorBlendAttachmentState blendAttachment{};
+		blendAttachment.blendEnable = VK_TRUE;
+		blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+		blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+		blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+		blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+		blendAttachment.colorWriteMask = colorWriteAll;
+		VkPipelineColorBlendStateCreateInfo cbCI{};
+		cbCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		cbCI.attachmentCount = 1;
+		cbCI.pAttachments = &blendAttachment;
+
+		// デプスステンシルステート設定
+		VkPipelineDepthStencilStateCreateInfo depthStencilCI{};
+		depthStencilCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencilCI.depthTestEnable = VK_TRUE;
+		depthStencilCI.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+		depthStencilCI.depthWriteEnable = VK_TRUE;
+		depthStencilCI.stencilTestEnable = VK_FALSE;
+
+		// シェーダバイナリのロード
+		std::vector<VkPipelineShaderStageCreateInfo> shaderStages
+		{
+			loadShaderModule("shader.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+			loadShaderModule("shaderOpaque.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+		};
+
+		// パイプライン構築
+		VkGraphicsPipelineCreateInfo ci{};
+		ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		ci.stageCount = uint32_t(shaderStages.size());
+		ci.pStages = shaderStages.data();
+		ci.pInputAssemblyState = &inputAssemblyCI;
+		ci.pVertexInputState = &vertexInputCI;
+		ci.pRasterizationState = &rasterizerCI;
+		ci.pDepthStencilState = &depthStencilCI;
+		ci.pMultisampleState = &multisampleCI;
+		ci.pViewportState = &viewportCI;
+		ci.pColorBlendState = &cbCI;
+		ci.renderPass = m_renderPass;
+		ci.layout = m_pipelineLayout;
+		result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipelineOpaque);
+		checkResult(result);
+
+		// シェーダバイナリはもう使わないので解放
+		for (const VkPipelineShaderStageCreateInfo& v : shaderStages)
+		{
+			vkDestroyShaderModule(m_device, v.module, nullptr);
+		}
+	}
+
+	// 半透明用: パイプラインの構築
+	{
+		// ブレンディングの設定
+		const int32_t colorWriteAll = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		VkPipelineColorBlendAttachmentState blendAttachment{};
+		blendAttachment.blendEnable = VK_TRUE;
+		blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+		blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+		blendAttachment.colorWriteMask = colorWriteAll;
+		VkPipelineColorBlendStateCreateInfo cbCI{};
+		cbCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		cbCI.attachmentCount = 1;
+		cbCI.pAttachments = &blendAttachment;
+
+		// デプスステンシルステート設定
+		VkPipelineDepthStencilStateCreateInfo depthStencilCI{};
+		depthStencilCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencilCI.depthTestEnable = VK_TRUE;
+		depthStencilCI.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+		depthStencilCI.depthWriteEnable = VK_FALSE;
+		depthStencilCI.stencilTestEnable = VK_FALSE;
+
+		// シェーダバイナリのロード
+		std::vector<VkPipelineShaderStageCreateInfo> shaderStages
+		{
+			loadShaderModule("shader.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+			loadShaderModule("shaderAlpha.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+		};
+
+		// パイプライン構築
+		VkGraphicsPipelineCreateInfo ci{};
+		ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		ci.stageCount = uint32_t(shaderStages.size());
+		ci.pStages = shaderStages.data();
+		ci.pInputAssemblyState = &inputAssemblyCI;
+		ci.pVertexInputState = &vertexInputCI;
+		ci.pRasterizationState = &rasterizerCI;
+		ci.pDepthStencilState = &depthStencilCI;
+		ci.pMultisampleState = &multisampleCI;
+		ci.pViewportState = &viewportCI;
+		ci.pColorBlendState = &cbCI;
+		ci.renderPass = m_renderPass;
+		ci.layout = m_pipelineLayout;
+		result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipelineAlpha);
+		checkResult(result);
+
+		// シェーダバイナリはもう使わないので解放
+		for (const VkPipelineShaderStageCreateInfo& v : shaderStages)
+		{
+			vkDestroyShaderModule(m_device, v.module, nullptr);
+		}
+	}
+
 }
 
