@@ -40,6 +40,17 @@ void DisplayHDR10App::Prepare()
 	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
 
 	PrepareTeapot();
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
+	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCI.pNext = nullptr;
+	pipelineLayoutCI.flags = 0;
+	pipelineLayoutCI.setLayoutCount = 1;
+	pipelineLayoutCI.pSetLayouts = &m_descriptorSetLayout;
+	pipelineLayoutCI.pushConstantRangeCount = 0;
+	pipelineLayoutCI.pPushConstantRanges = nullptr;
+	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLyaout);
+	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 }
 
 void DisplayHDR10App::Cleanup()
@@ -51,6 +62,7 @@ void DisplayHDR10App::Cleanup()
 	m_descriptorSets.clear();
 
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
+	vkDestroyPipelineLayout(m_device, m_pipelineLyaout, nullptr);
 
 	DestroyImage(m_depthBuffer);
 	uint32_t count = uint32_t(m_framebuffers.size());
