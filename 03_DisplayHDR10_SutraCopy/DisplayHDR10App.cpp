@@ -378,7 +378,8 @@ void DisplayHDR10App::PrepareTeapot()
 
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
-		m_uniformBuffers[i] = CreateBuffer(sizeof(ShaderParameters), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
+		uint32_t buffersize = uint32_t(sizeof(ShaderParameters));
+		m_uniformBuffers[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
 	}
 
 	for (size_t i = 0; i < imageCount; ++i)
@@ -421,7 +422,7 @@ void DisplayHDR10App::CreatePipeline()
 	inputAttribs[1].location = 1;
 	inputAttribs[1].binding = 0;
 	inputAttribs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-	inputAttribs[1].offset = offsetof(TeapotModel::Vertex, Position);
+	inputAttribs[1].offset = offsetof(TeapotModel::Vertex, Normal);
 
 	VkPipelineVertexInputStateCreateInfo pipelineVisCI{};
 	pipelineVisCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
