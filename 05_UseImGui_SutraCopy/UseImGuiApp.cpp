@@ -6,7 +6,7 @@
 
 void UseImGuiApp::Prepare()
 {
-	CreateRenderPass();
+	PrepareRenderPass();
 
 	PrepareDepthbuffer();
 
@@ -227,33 +227,19 @@ bool UseImGuiApp::OnSizeChanged(uint32_t width, uint32_t height)
 	return isResized;
 }
 
-void UseImGuiApp::CreateRenderPass()
+void UseImGuiApp::PrepareRenderPass()
 {
 	std::array<VkAttachmentDescription, 2> attachments;
-	VkAttachmentDescription& colorTarget = attachments[0];
-	VkAttachmentDescription& depthTarget = attachments[1];
-
-	colorTarget = VkAttachmentDescription{};
-	colorTarget.flags = 0;
-	colorTarget.format = m_swapchain->GetSurfaceFormat().format;
-	colorTarget.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorTarget.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	colorTarget.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorTarget.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorTarget.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorTarget.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorTarget.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	depthTarget = VkAttachmentDescription{};
-	depthTarget.flags = 0;
-	depthTarget.format = VK_FORMAT_D32_SFLOAT;
-	depthTarget.samples = VK_SAMPLE_COUNT_1_BIT;
-	depthTarget.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthTarget.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	depthTarget.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depthTarget.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthTarget.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	depthTarget.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachments[0] = book_util::GetAttachmentDescription(
+		m_swapchain->GetSurfaceFormat().format,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+	);
+	attachments[1] = book_util::GetAttachmentDescription(
+		VK_FORMAT_D32_SFLOAT,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+	);
 
 	VkAttachmentReference colorRef{};
 	colorRef.attachment = 0;
