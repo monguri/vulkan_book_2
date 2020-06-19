@@ -109,8 +109,8 @@ int _stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
 
 	try
 	{
-		VkFormat surfaceFormat = VK_FORMAT_R8G8B8A8_UNORM;
-		surfaceFormat = VK_FORMAT_R16G16B16_SFLOAT;
+		VkFormat surfaceFormat = VK_FORMAT_B8G8R8A8_UNORM;
+		surfaceFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 		theApp.Initialize(window, surfaceFormat, false);
 
 		while (glfwWindowShouldClose(window) == GLFW_FALSE)
