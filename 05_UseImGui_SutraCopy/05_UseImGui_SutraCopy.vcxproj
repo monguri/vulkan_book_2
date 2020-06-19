@@ -84,6 +84,19 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\commonSutraCopy\Swapchain.cpp" />
+    <ClCompile Include="..\commonSutraCopy\VulkanAppBase.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="UseImGuiApp.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\commonSutraCopy\Swapchain.h" />
+    <ClInclude Include="..\commonSutraCopy\TeapotModel.h" />
+    <ClInclude Include="..\commonSutraCopy\VulkanAppBase.h" />
+    <ClInclude Include="..\commonSutraCopy\VulkanBookUtil.h" />
+    <ClInclude Include="UseImGuiApp.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\05_UseImGui\packages\glfw.3.3.2\build\native\glfw.targets" Condition="Exists('..\05_UseImGui\packages\glfw.3.3.2\build\native\glfw.targets')" />
