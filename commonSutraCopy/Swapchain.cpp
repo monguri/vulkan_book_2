@@ -58,26 +58,27 @@ void Swapchain::Prepare(VkPhysicalDevice physDev, uint32_t graphicsQueueIndex, u
 	VkSwapchainKHR oldSwapchain = m_swapchain;
 	uint32_t queueFamilyIndices[] = {graphicsQueueIndex};
 
-	VkSwapchainCreateInfoKHR ci{};
-	ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	ci.pNext = nullptr;
-	ci.surface = m_surface;
-	ci.minImageCount = imageCount;
-	ci.imageFormat = m_selectFormat.format;
-	ci.imageColorSpace = m_selectFormat.colorSpace;
-	ci.imageExtent = m_surfaceExtent;
-	ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	ci.preTransform = m_surfaceCaps.currentTransform;
-	ci.imageArrayLayers = 1;
-	ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	ci.queueFamilyIndexCount = 0;
-	ci.pQueueFamilyIndices = queueFamilyIndices;
-	ci.presentMode = m_presentMode;
-	ci.oldSwapchain = oldSwapchain;
-	ci.clipped = VK_TRUE;
-	ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	VkSwapchainCreateInfoKHR swapchainCI{};
+	swapchainCI.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapchainCI.pNext = nullptr;
+	swapchainCI.flags = 0;
+	swapchainCI.surface = m_surface;
+	swapchainCI.minImageCount = imageCount;
+	swapchainCI.imageFormat = m_selectFormat.format;
+	swapchainCI.imageColorSpace = m_selectFormat.colorSpace;
+	swapchainCI.imageExtent = m_surfaceExtent;
+	swapchainCI.imageArrayLayers = 1;
+	swapchainCI.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	swapchainCI.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	swapchainCI.queueFamilyIndexCount = _countof(queueFamilyIndices);
+	swapchainCI.pQueueFamilyIndices = queueFamilyIndices;
+	swapchainCI.preTransform = m_surfaceCaps.currentTransform;
+	swapchainCI.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	swapchainCI.presentMode = m_presentMode;
+	swapchainCI.clipped = VK_TRUE;
+	swapchainCI.oldSwapchain = oldSwapchain;
 
-	result = vkCreateSwapchainKHR(m_device, &ci, nullptr, &m_swapchain);
+	result = vkCreateSwapchainKHR(m_device, &swapchainCI, nullptr, &m_swapchain);
 	ThrowIfFailed(result, "vkCreateSwapchainKHR Failed.");
 
 	if (oldSwapchain != VK_NULL_HANDLE)
