@@ -29,7 +29,6 @@ static VkBool32 VKAPI_CALL DebugReportCallback(
 	OutputDebugStringA(ss.str().c_str());
 
 	return ret;
-
 }
 
 bool VulkanAppBase::OnSizeChanged(uint32_t width, uint32_t height)
@@ -135,14 +134,14 @@ void VulkanAppBase::Initialize(GLFWwindow* window, VkFormat format, bool isFulls
 	m_swapchain->Prepare(m_physicalDevice, m_gfxQueueIndex, uint32_t(width), uint32_t(height), format);
 
 	// セマフォの生成
-	VkSemaphoreCreateInfo ci{};
-	ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	ci.pNext = nullptr;
-	ci.flags = 0;
+	VkSemaphoreCreateInfo semCI{};
+	semCI.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	semCI.pNext = nullptr;
+	semCI.flags = 0;
 
-	result = vkCreateSemaphore(m_device, &ci, nullptr, &m_renderCompletedSem);
+	result = vkCreateSemaphore(m_device, &semCI, nullptr, &m_renderCompletedSem);
 	ThrowIfFailed(result, "vkCreateSemaphore Failed.");
-	result = vkCreateSemaphore(m_device, &ci, nullptr, &m_presentCompletedSem);
+	result = vkCreateSemaphore(m_device, &semCI, nullptr, &m_presentCompletedSem);
 	ThrowIfFailed(result, "vkCreateSemaphore Failed.");
 
 	// ディスクリプタプールの生成
@@ -223,19 +222,19 @@ void VulkanAppBase::CreateInstance()
 		extensions.push_back(v.extensionName);
 	}
 
-	VkInstanceCreateInfo ci{};
-	ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	ci.enabledExtensionCount = uint32_t(extensions.size());
-	ci.ppEnabledExtensionNames = extensions.data();
-	ci.pApplicationInfo = &appInfo;
+	VkInstanceCreateInfo instanceCI{};
+	instanceCI.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCI.enabledExtensionCount = count;
+	instanceCI.ppEnabledExtensionNames = extensions.data();
+	instanceCI.pApplicationInfo = &appInfo;
 #ifdef _DEBUG
 	// デバッグビルドでは検証レイヤーを有効化
 	const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };
-	ci.enabledLayerCount = 1;
-	ci.ppEnabledLayerNames = layers;
+	instanceCI.enabledLayerCount = 1;
+	instanceCI.ppEnabledLayerNames = layers;
 #endif
 
-	VkResult result = vkCreateInstance(&ci, nullptr, &m_vkInstance);
+	VkResult result = vkCreateInstance(&instanceCI, nullptr, &m_vkInstance);
 	ThrowIfFailed(result, "vkCreateInstance Failed.");
 }
 
@@ -246,7 +245,7 @@ void VulkanAppBase::SelectGraphicsQueue()
 	std::vector<VkQueueFamilyProperties> queueFamilyProps(queuePropCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queuePropCount, queueFamilyProps.data());
 
-	uint32_t graphicsQueue = 0;
+	uint32_t graphicsQueue = ~0u;
 	for (uint32_t i = 0; i < queuePropCount; ++i)
 	{
 		if (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
@@ -300,12 +299,10 @@ void VulkanAppBase::CreateDevice()
 
 
 	// デバイス拡張情報をここでも取得
-	std::vector<VkExtensionProperties> deviceExtensions;
-
 	uint32_t count = 0;
 	VkResult result = vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, nullptr);
 	ThrowIfFailed(result, "vkEnumerateDeviceExtensionProperties Failed.");
-	deviceExtensions.resize(count);
+	std::vector<VkExtensionProperties> deviceExtensions(count);
 	result = vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, deviceExtensions.data());
 	ThrowIfFailed(result, "vkEnumerateDeviceExtensionProperties Failed.");
 
@@ -324,7 +321,7 @@ void VulkanAppBase::CreateDevice()
 	ci.pQueueCreateInfos = &devQueueCI;
 	ci.enabledLayerCount = 0;
 	ci.ppEnabledLayerNames = nullptr;
-	ci.enabledExtensionCount = uint32_t(extensions.size());
+	ci.enabledExtensionCount = count;
 	ci.ppEnabledExtensionNames = extensions.data();
 	ci.pEnabledFeatures = nullptr;
 
@@ -336,28 +333,28 @@ void VulkanAppBase::CreateDevice()
 
 void VulkanAppBase::CreateCommandPool()
 {
-	VkCommandPoolCreateInfo ci{};
-	ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	ci.pNext = nullptr;
-	ci.queueFamilyIndex = m_gfxQueueIndex;
-	ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	VkCommandPoolCreateInfo cmdPoolCI{};
+	cmdPoolCI.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	cmdPoolCI.pNext = nullptr;
+	cmdPoolCI.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	cmdPoolCI.queueFamilyIndex = m_gfxQueueIndex;
 
-	VkResult result = vkCreateCommandPool(m_device, &ci, nullptr, &m_commandPool);
+	VkResult result = vkCreateCommandPool(m_device, &cmdPoolCI, nullptr, &m_commandPool);
 	ThrowIfFailed(result, "vkCreateCommandPool Failed.");
 }
 
 void VulkanAppBase::CreateDescriptorPool()
 {
 	VkDescriptorPoolSize poolSize[2];
-	poolSize[0].descriptorCount = 1000; // とりあえず1000
 	poolSize[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSize[1].descriptorCount = 1000; // とりあえず1000
+	poolSize[0].descriptorCount = 1000; // とりあえず1000
 	poolSize[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize[1].descriptorCount = 1000; // とりあえず1000
 
 	VkDescriptorPoolCreateInfo descPoolCI{};
 	descPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descPoolCI.pNext = nullptr;
-	descPoolCI.flags = 0;
+	descPoolCI.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	descPoolCI.maxSets = 1000 * _countof(poolSize);
 	descPoolCI.poolSizeCount = _countof(poolSize);
 	descPoolCI.pPoolSizes = poolSize;
