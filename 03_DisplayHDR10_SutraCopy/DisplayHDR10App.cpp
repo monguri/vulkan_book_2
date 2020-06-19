@@ -126,10 +126,10 @@ void DisplayHDR10App::Render()
 	commandBI.pInheritanceInfo = nullptr;
 
 	{
-		glm::vec3 cameraPos = glm::vec3(0.0f, 0.0, 5.0f);
-
 		ShaderParameters shaderParam{};
 		shaderParam.world = glm::mat4(1.0f);
+
+		glm::vec3 cameraPos = glm::vec3(0.0f, 0.0, 5.0f);
 		shaderParam.view = glm::lookAtRH(
 			cameraPos,
 			glm::vec3(0.0f, 0.0f, 0.0f),
@@ -151,7 +151,7 @@ void DisplayHDR10App::Render()
 		void* p = nullptr;
 		result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
 		ThrowIfFailed(result, "vkMapMemory Failed.");
-		memcpy(p, &shaderParam, sizeof(shaderParam));
+		memcpy(p, &shaderParam, sizeof(ShaderParameters));
 		vkUnmapMemory(m_device, ubo.memory);
 	}
 
@@ -301,13 +301,13 @@ void DisplayHDR10App::PrepareTeapot()
 	VkBufferUsageFlags usageVB = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	VkMemoryPropertyFlags srcMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	VkMemoryPropertyFlags dstMemoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	const BufferObject& stageVB = CreateBuffer(bufferSizeVB, usageVB, srcMemoryProps);
-	const BufferObject& targetVB = CreateBuffer(bufferSizeVB, usageVB, dstMemoryProps);
+	const BufferObject& stageVB = CreateBuffer(bufferSizeVB, usageVB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, srcMemoryProps);
+	const BufferObject& targetVB = CreateBuffer(bufferSizeVB, usageVB | VK_BUFFER_USAGE_TRANSFER_DST_BIT, dstMemoryProps);
 
 	uint32_t bufferSizeIB = uint32_t(sizeof(TeapotModel::TeapotIndices));
 	VkBufferUsageFlags usageIB = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	const BufferObject& stageIB = CreateBuffer(bufferSizeIB, usageIB, srcMemoryProps);
-	const BufferObject& targetIB = CreateBuffer(bufferSizeIB, usageIB, dstMemoryProps);
+	const BufferObject& stageIB = CreateBuffer(bufferSizeIB, usageIB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, srcMemoryProps);
+	const BufferObject& targetIB = CreateBuffer(bufferSizeIB, usageIB | VK_BUFFER_USAGE_TRANSFER_DST_BIT, dstMemoryProps);
 
 	// ステージ用のVBとIBにデータをコピー
 	void* p = nullptr;
