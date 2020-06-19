@@ -33,9 +33,9 @@ private:
 
 	struct ShaderParameters
 	{
-		glm::mat4 mtxWorld;
-		glm::mat4 mtxView;
-		glm::mat4 mtxProj;
+		glm::mat4 world;
+		glm::mat4 view;
+		glm::mat4 proj;
 		glm::vec4 lightPos;
 		glm::vec4 cameraPos;
 	};

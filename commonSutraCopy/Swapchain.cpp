@@ -140,10 +140,11 @@ void Swapchain::Cleanup()
 	m_images.clear();
 }
 
-void Swapchain::AcquireNextImage(uint32_t* pImageIndex, VkSemaphore semaphore, uint64_t timeout)
+VkResult Swapchain::AcquireNextImage(uint32_t* pImageIndex, VkSemaphore semaphore, uint64_t timeout)
 {
 	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, timeout, semaphore, VK_NULL_HANDLE, pImageIndex);
 	ThrowIfFailed(result, "vkAcquireNextImageKHR Failed.");
+	return result;
 }
 
 void Swapchain::QueuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitRenderComplete)

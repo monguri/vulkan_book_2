@@ -2,6 +2,7 @@
 #include "VulkanBookUtil.h"
 #include "TeapotModel.h"
 #include <array>
+#include <glm/gtc/matrix_transform.hpp>
 
 void DisplayHDR10App::Prepare()
 {
@@ -67,6 +68,8 @@ void DisplayHDR10App::Cleanup()
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 	vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 
+	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+
 	DestroyImage(m_depthBuffer);
 	uint32_t count = uint32_t(m_framebuffers.size());
 	DestroyFramebuffers(count, m_framebuffers.data());
@@ -84,6 +87,113 @@ void DisplayHDR10App::Cleanup()
 
 void DisplayHDR10App::Render()
 {
+	if (m_isMinimizedWindow)
+	{
+		MsgLoopMinimizedWindow();
+	}
+
+	uint32_t imageIndex = 0;
+	VkResult result = m_swapchain->AcquireNextImage(&imageIndex, m_presentCompletedSem);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR)
+	{
+		return;
+	}
+
+	std::array<VkClearValue, 2> clearValue = {
+		{
+			{0.85f, 0.5f, 0.5f, 0.0f}, // for Color
+			{1.0f, 0}, // for Depth
+		}
+	};
+
+	VkRect2D renderArea{};
+	renderArea.offset = VkOffset2D{ 0, 0 };
+	renderArea.extent = m_swapchain->GetSurfaceExtent();
+
+	VkRenderPassBeginInfo rpBI{};
+	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	rpBI.pNext = nullptr;
+	rpBI.renderPass = m_renderPass;
+	rpBI.framebuffer = m_framebuffers[imageIndex];
+	rpBI.renderArea = renderArea;
+	rpBI.clearValueCount = uint32_t(clearValue.size());
+	rpBI.pClearValues = clearValue.data();
+
+	VkCommandBufferBeginInfo commandBI{};
+	commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	commandBI.pNext = nullptr;
+	commandBI.flags = 0;
+	commandBI.pInheritanceInfo = nullptr;
+
+	{
+		glm::vec3 cameraPos = glm::vec3(0.0f, 0.0, 5.0f);
+
+		ShaderParameters shaderParam{};
+		shaderParam.world = glm::mat4(1.0f);
+		shaderParam.view = glm::lookAtRH(
+			cameraPos,
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 1.0f, 0.0f)
+		);
+
+		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+		shaderParam.proj = glm::perspectiveRH(
+			glm::radians(45.0f),
+			float(extent.width) / float(extent.height),
+			0.1f,
+			1000.0f
+		);
+
+		shaderParam.lightPos = glm::vec4(0.0f, 10.0f, 10.0f, 0.0f);
+		shaderParam.cameraPos = glm::vec4(cameraPos, 0.0f);
+
+		const BufferObject& ubo = m_uniformBuffers[imageIndex];
+		void* p = nullptr;
+		result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+		ThrowIfFailed(result, "vkMapMemory Failed.");
+		memcpy(p, &shaderParam, sizeof(shaderParam));
+		vkUnmapMemory(m_device, ubo.memory);
+	}
+
+	VkCommandBuffer& command = m_commandBuffers[imageIndex];
+	const VkFence& fence = m_commandFences[imageIndex];
+	result = vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
+	ThrowIfFailed(result, "vkWaitForFences Failed.");
+
+	result = vkBeginCommandBuffer(command, &commandBI);
+	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
+	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
+	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
+	vkCmdDrawIndexed(command, m_teapot.indexCount, 1, 0, 0, 0);
+
+	vkCmdEndRenderPass(command);
+	result = vkEndCommandBuffer(command);
+	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
+
+	// コマンドバッファ実行
+	VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.pNext = nullptr;
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = &m_presentCompletedSem;
+	submitInfo.pWaitDstStageMask = &waitStageMask;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &command;
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = &m_renderCompletedSem;
+
+	result = vkResetFences(m_device, 1, &fence);
+	ThrowIfFailed(result, "vkResetFences Failed.");
+	result = vkQueueSubmit(m_deviceQueue, 1, &submitInfo, fence);
+	ThrowIfFailed(result, "vkQueueSubmit Failed.");
+
+	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
 }
 
 bool DisplayHDR10App::OnSizeChanged(uint32_t width, uint32_t height)
