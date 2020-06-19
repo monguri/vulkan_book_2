@@ -43,6 +43,7 @@ private:
 	std::vector<BufferObject> m_uniformBuffers;
 
 	void CreateRenderPass();
+	void PrepareDepthbuffer();
 	void PrepareFramebuffers();
 	void PrepareTeapot();
 	void CreatePipeline();

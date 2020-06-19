@@ -8,11 +8,8 @@ void UseImGuiApp::Prepare()
 {
 	CreateRenderPass();
 
-	// デプスバッファを準備する
-	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-	m_depthBuffer = CreateImage(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	PrepareDepthbuffer();
 
-	// フレームバッファを準備
 	PrepareFramebuffers();
 
 	uint32_t imageCount = m_swapchain->GetImageCount();
@@ -211,21 +208,23 @@ void UseImGuiApp::Render()
 
 bool UseImGuiApp::OnSizeChanged(uint32_t width, uint32_t height)
 {
-	bool result = VulkanAppBase::OnSizeChanged(width, height);
-	if (result)
+	bool isResized = VulkanAppBase::OnSizeChanged(width, height);
+	if (isResized)
 	{
+		// 古いデプスバッファを破棄
 		DestroyImage(m_depthBuffer);
+
+		// 古いフレームバッファを破棄
 		DestroyFramebuffers(uint32_t(m_framebuffers.size()), m_framebuffers.data());
 
-		// デプスバッファを再生成
-		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-		m_depthBuffer = CreateImage(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+		// 新解像度でのデプスバッファ作成
+		PrepareDepthbuffer();
 
-		// フレームバッファを準備
+		// 新解像度でのフレームバッファを作成
 		PrepareFramebuffers();
 	}
 
-	return result;
+	return isResized;
 }
 
 void UseImGuiApp::CreateRenderPass()
@@ -289,6 +288,13 @@ void UseImGuiApp::CreateRenderPass()
 
 	VkResult result = vkCreateRenderPass(m_device, &rpCI, nullptr, &m_renderPass);
 	ThrowIfFailed(result, "vkCreateRenderPass Failed.");
+}
+
+void UseImGuiApp::PrepareDepthbuffer()
+{
+	// デプスバッファを準備する
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+	m_depthBuffer = CreateImage(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
 void UseImGuiApp::PrepareFramebuffers()
