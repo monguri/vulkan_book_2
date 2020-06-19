@@ -107,6 +107,8 @@ private:
 	VkDebugReportCallbackEXT m_debugReport = VK_NULL_HANDLE;
 
 protected:
+	void MsgLoopMinimizedWindow();
+
 	VkDevice m_device = VK_NULL_HANDLE;
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 	VkInstance m_vkInstance = VK_NULL_HANDLE;

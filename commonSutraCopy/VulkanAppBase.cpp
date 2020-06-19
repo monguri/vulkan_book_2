@@ -556,3 +556,14 @@ void VulkanAppBase::FinishCommandBuffer(VkCommandBuffer command)
 	vkDestroyFence(m_device, fence, nullptr);
 }
 
+// TODO:‚±‚Ìˆ—‚Í‰½‚Ì‚½‚ß‚É‚ ‚é‚©—‰ğ‚Å‚«‚Ä‚È‚¢
+void VulkanAppBase::MsgLoopMinimizedWindow()
+{
+	int width, height;
+
+	do
+	{
+		glfwGetWindowSize(m_window, &width, &height);
+		glfwWaitEvents();
+	} while (width == 0 || height == 0);
+}
