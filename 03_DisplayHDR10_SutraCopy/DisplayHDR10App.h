@@ -19,7 +19,7 @@ private:
 	std::vector<VkCommandBuffer> m_commandBuffers;
 	VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
 	std::vector<VkDescriptorSet> m_descriptorSets;
-	VkPipelineLayout m_pipelineLyaout = VK_NULL_HANDLE;
+	VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 	VkPipeline m_pipeline = nullptr;
 
 	struct ModelData
