@@ -1,11 +1,8 @@
 #include "ResizableApp.h"
 #include "VulkanBookUtil.h"
 
-// 本ではプロジェクト設定でリンクに加えてるけどここではvulkan_book_1と同様に#pragmraでリンク指定する
-#pragma comment(lib, "vulkan-1.lib")
-
 const int WindowWidth = 800, WindowHeight = 600;
-const char* AppTile = "DisplayHDR10";
+const char* AppTile = "ResizableWindow";
 
 static void KeyboardInputCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {

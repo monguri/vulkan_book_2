@@ -1,9 +1,6 @@
 #include "DisplayHDR10App.h"
 #include "VulkanBookUtil.h"
 
-// 本ではプロジェクト設定でリンクに加えてるけどここではvulkan_book_1と同様に#pragmraでリンク指定する
-#pragma comment(lib, "vulkan-1.lib")
-
 const int WindowWidth = 800, WindowHeight = 600;
 const char* AppTile = "DisplayHDR10";
 
