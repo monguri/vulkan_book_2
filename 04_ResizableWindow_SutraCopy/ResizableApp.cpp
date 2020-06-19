@@ -164,6 +164,19 @@ void ResizableApp::Render()
 	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
 	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
 
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
+
+	VkOffset2D offset{};
+	offset.x = 0;
+	offset.y = 0;
+	VkRect2D scissor{};
+	scissor.offset = offset;
+	scissor.extent = extent;
+
+	vkCmdSetScissor(command, 0, 1, &scissor);
+	vkCmdSetViewport(command, 0, 1, &viewport);
+
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
 	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -497,6 +510,18 @@ void ResizableApp::CreatePipeline()
 
 	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
 
+	// DynamicState
+	std::vector<VkDynamicState> dynamicStates{
+		VK_DYNAMIC_STATE_SCISSOR,
+		VK_DYNAMIC_STATE_VIEWPORT
+	};
+	VkPipelineDynamicStateCreateInfo pipelineDynamicStateCI{};
+	pipelineDynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	pipelineDynamicStateCI.pNext = nullptr;
+	pipelineDynamicStateCI.flags = 0;
+	pipelineDynamicStateCI.dynamicStateCount = uint32_t(dynamicStates.size());
+	pipelineDynamicStateCI.pDynamicStates = dynamicStates.data();
+
 	// パイプライン構築
 	VkGraphicsPipelineCreateInfo pipelineCI{};
 	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -511,7 +536,7 @@ void ResizableApp::CreatePipeline()
 	pipelineCI.pMultisampleState = &multisampleCI;
 	pipelineCI.pDepthStencilState = &dsState;
 	pipelineCI.pColorBlendState = &colorBlendStateCI;
-	pipelineCI.pDynamicState = nullptr;
+	pipelineCI.pDynamicState = &pipelineDynamicStateCI;
 	pipelineCI.layout = m_pipelineLayout;
 	pipelineCI.renderPass = m_renderPass;
 	pipelineCI.subpass = 0;
