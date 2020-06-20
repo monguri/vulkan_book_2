@@ -15,8 +15,14 @@ private:
 	VkRenderPass m_renderPass;
 	ImageObject m_depthBuffer;
 	std::vector<VkFramebuffer> m_framebuffers;
-	std::vector<VkFence> m_commandFences;
-	std::vector<VkCommandBuffer> m_commandBuffers;
+
+	struct CommandBuffer
+	{
+		VkFence fence;
+		VkCommandBuffer command;
+	};
+
+	std::vector<CommandBuffer> m_commandBuffers;
 	VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
 	std::vector<VkDescriptorSet> m_descriptorSets;
 	VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
@@ -45,6 +51,7 @@ private:
 	void PrepareRenderPass();
 	void PrepareDepthbuffer();
 	void PrepareFramebuffers();
+	void PrepareCommandBuffersPrimary();
 	void PrepareTeapot();
 	void CreatePipeline();
 };
