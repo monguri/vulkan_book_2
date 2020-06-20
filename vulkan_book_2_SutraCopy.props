@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(VK_SDK_PATH)\include;$(ProjectDir);$(ProjectDir)..\commonSutraCopy;$(ProjectDir)..\commonSutraCopy\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VK_SDK_PATH)\include;$(ProjectDir);$(ProjectDir)..\commonSutraCopy;$(ProjectDir)..\common\imgui</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
