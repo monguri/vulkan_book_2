@@ -9,6 +9,13 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+static glm::vec4 colorSet[] = {
+	glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+	glm::vec4(1.0f, 0.65f, 1.0f, 1.0f),
+	glm::vec4(0.1f, 0.5f, 1.0f, 1.0f),
+	glm::vec4(0.6f, 1.0f, 0.8f, 1.0f),
+};
+
 void InstancingApp::Prepare()
 {
 	CreateRenderPass();
@@ -58,7 +65,10 @@ void InstancingApp::Prepare()
 	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 
+	PrepareInstanceData();
+
 	CreatePipeline();
+
 	// ImGui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -96,6 +106,7 @@ void InstancingApp::Cleanup()
 {
 	DestroyBuffer(m_teapot.vertexBuffer);
 	DestroyBuffer(m_teapot.indexBuffer);
+	DestroyBuffer(m_instanceData);
 
 	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_descriptorSets.size()), m_descriptorSets.data());
 	m_descriptorSets.clear();
@@ -169,10 +180,9 @@ void InstancingApp::Render()
 		ShaderParameters shaderParam{};
 		shaderParam.world = glm::mat4(1.0f);
 
-		glm::vec3 cameraPos = glm::vec3(0.0f, 0.0, 5.0f);
 		shaderParam.view = glm::lookAtRH(
-			cameraPos,
-			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(3.0f, 5.0f, 10.0f - m_cameraOffset),
+			glm::vec3(3.0f, 2.0f, 0.0f - m_cameraOffset),
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
 
@@ -183,9 +193,6 @@ void InstancingApp::Render()
 			0.1f,
 			1000.0f
 		);
-
-		shaderParam.lightPos = glm::vec4(0.0f, 10.0f, 10.0f, 0.0f);
-		shaderParam.cameraPos = glm::vec4(cameraPos, 0.0f);
 
 		const BufferObject& ubo = m_uniformBuffers[imageIndex];
 		void* p = nullptr;
@@ -221,8 +228,12 @@ void InstancingApp::Render()
 	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
 	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 	VkDeviceSize offsets[] = {0};
-	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
-	vkCmdDrawIndexed(command, m_teapot.indexCount, 1, 0, 0, 0);
+	VkBuffer vertexStreams[] = {
+		m_teapot.vertexBuffer.buffer,
+		m_instanceData.buffer
+	};
+	vkCmdBindVertexBuffers(command, 0, _countof(vertexStreams), vertexStreams, offsets);
+	vkCmdDrawIndexed(command, m_teapot.indexCount, m_instanceCount, 0, 0, 0);
 	RenderImGui(command);
 
 	vkCmdEndRenderPass(command);
@@ -280,8 +291,8 @@ void InstancingApp::RenderImGui(VkCommandBuffer command)
 		ImGui::Text("DrawTeapot");
 		float framerate = ImGui::GetIO().Framerate;
 		ImGui::Text("Framerate(avg) %.3f ms/frame", 1000.0f / framerate);
-		//ImGui::SliderInt("Count", &m_instanceCount, 1, InstanceDataMax);
-		//ImGui::SliderFloat("Camera", &m_cameraOffset, 0.0f, 50.0f);
+		ImGui::SliderInt("Count", &m_instanceCount, 1, InstanceDataMax);
+		ImGui::SliderFloat("Camera", &m_cameraOffset, 0.0f, 50.0f);
 		ImGui::End();
 	}
 
@@ -479,16 +490,55 @@ void InstancingApp::PrepareTeapot()
 	}
 }
 
+void InstancingApp::PrepareInstanceData()
+{
+	VkMemoryPropertyFlags srcMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	VkMemoryPropertyFlags dstMemoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	VkBufferUsageFlags usageVB = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	// インスタンシング用のバッファを準備
+	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceDataMax;
+	const BufferObject& stageBuf = CreateBuffer(bufferSize, usageVB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, srcMemoryProps);
+	m_instanceData = CreateBuffer(bufferSize, usageVB | VK_BUFFER_USAGE_TRANSFER_DST_BIT, dstMemoryProps);
+
+	std::vector<InstanceData> data(InstanceDataMax);
+	for (uint32_t i = 0; i < InstanceDataMax; ++i)
+	{
+		data[i].offsetPosition.x = (i % 6) * 3.0f;
+		data[i].offsetPosition.y = 0.0f;
+		data[i].offsetPosition.z = (i / 6) * 3.0f;
+		data[i].color = colorSet[i % _countof(colorSet)];
+	}
+
+	void* p = nullptr;
+	vkMapMemory(m_device, stageBuf.memory, 0, VK_WHOLE_SIZE, 0, &p);
+	memcpy(p, TeapotModel::TeapotVerticesPN, bufferSize);
+	vkUnmapMemory(m_device, stageBuf.memory);
+
+	// ターゲットのVBとIBにデータをコピーするコマンドの実行
+	VkCommandBuffer command = CreateCommandBuffer();
+	VkBufferCopy copyRegion{};
+	copyRegion.size = bufferSize;
+	vkCmdCopyBuffer(command, stageBuf.buffer, m_instanceData.buffer, 1, &copyRegion);
+	FinishCommandBuffer(command);
+	vkFreeCommandBuffers(m_device, m_commandPool, 1, &command);
+
+	DestroyBuffer(stageBuf);
+}
+
 void InstancingApp::CreatePipeline()
 {
-	// 頂点の入力の設定
-	uint32_t stride = uint32_t(sizeof(TeapotModel::Vertex));
-	VkVertexInputBindingDescription vibDesc{};
-	vibDesc.binding = 0;
-	vibDesc.stride = stride;
-	vibDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	uint32_t vertexStride = uint32_t(sizeof(TeapotModel::Vertex));
+	uint32_t instanceStride = uint32_t(sizeof(InstanceData));
 
-	std::array<VkVertexInputAttributeDescription, 2> inputAttribs{};
+	std::array<VkVertexInputBindingDescription, 2> vibDesc{};
+	vibDesc[0].binding = 0;
+	vibDesc[0].stride = vertexStride;
+	vibDesc[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	vibDesc[1].binding = 1;
+	vibDesc[1].stride = instanceStride;
+	vibDesc[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+	std::array<VkVertexInputAttributeDescription, 4> inputAttribs{};
 	inputAttribs[0].location = 0;
 	inputAttribs[0].binding = 0;
 	inputAttribs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -497,13 +547,21 @@ void InstancingApp::CreatePipeline()
 	inputAttribs[1].binding = 0;
 	inputAttribs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 	inputAttribs[1].offset = offsetof(TeapotModel::Vertex, Normal);
+	inputAttribs[2].location = 2;
+	inputAttribs[2].binding = 1;
+	inputAttribs[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+	inputAttribs[2].offset = offsetof(InstanceData, offsetPosition);
+	inputAttribs[3].location = 3;
+	inputAttribs[3].binding = 1;
+	inputAttribs[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	inputAttribs[3].offset = offsetof(InstanceData, color);
 
 	VkPipelineVertexInputStateCreateInfo pipelineVisCI{};
 	pipelineVisCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	pipelineVisCI.pNext = nullptr;
 	pipelineVisCI.flags = 0;
-	pipelineVisCI.vertexBindingDescriptionCount = 1;
-	pipelineVisCI.pVertexBindingDescriptions = &vibDesc;
+	pipelineVisCI.vertexBindingDescriptionCount = uint32_t(vibDesc.size());
+	pipelineVisCI.pVertexBindingDescriptions = vibDesc.data();
 	pipelineVisCI.vertexAttributeDescriptionCount = uint32_t(inputAttribs.size());
 	pipelineVisCI.pVertexAttributeDescriptions = inputAttribs.data();
 

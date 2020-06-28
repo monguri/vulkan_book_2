@@ -30,21 +30,29 @@ private:
 		uint32_t indexCount;
 	};
 	ModelData m_teapot;
+	BufferObject m_instanceData;
+	int m_instanceCount = 100;
+	float m_cameraOffset = 0.0f;
 
 	struct ShaderParameters
 	{
 		glm::mat4 world;
 		glm::mat4 view;
 		glm::mat4 proj;
-		glm::vec4 lightPos;
-		glm::vec4 cameraPos;
 	};
+	struct InstanceData
+	{
+		glm::vec3 offsetPosition;
+		glm::vec4 color;
+	};
+	const uint32_t InstanceDataMax = 200;
 
 	std::vector<BufferObject> m_uniformBuffers;
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();
 	void PrepareTeapot();
+	void PrepareInstanceData();
 	void CreatePipeline();
 
 	void RenderImGui(VkCommandBuffer command);
