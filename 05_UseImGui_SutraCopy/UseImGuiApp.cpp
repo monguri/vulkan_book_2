@@ -11,6 +11,8 @@ void UseImGuiApp::Prepare()
 {
 	PrepareRenderPass();
 
+	PrepareImGui();
+
 	PrepareDepthbuffer();
 
 	PrepareFramebuffers();
@@ -18,8 +20,6 @@ void UseImGuiApp::Prepare()
 	PrepareCommandBuffersPrimary();
 
 	PrepareTeapot();
-
-	PrepareImGui();
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
 	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -37,9 +37,7 @@ void UseImGuiApp::Prepare()
 
 void UseImGuiApp::Cleanup()
 {
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
+	CleanupImGui();
 
 	DestroyBuffer(m_teapot.vertexBuffer);
 	DestroyBuffer(m_teapot.indexBuffer);
@@ -165,6 +163,8 @@ void UseImGuiApp::Render()
 	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
 	vkCmdDrawIndexed(command, m_teapot.indexCount, 1, 0, 0, 0);
 
+	RenderImGui(command);
+
 	vkCmdEndRenderPass(command);
 	result = vkEndCommandBuffer(command);
 	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
@@ -188,6 +188,79 @@ void UseImGuiApp::Render()
 	ThrowIfFailed(result, "vkQueueSubmit Failed.");
 
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
+}
+
+void UseImGuiApp::PrepareImGui()
+{
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	bool success = ImGui_ImplGlfw_InitForVulkan(m_window, true);
+
+	ImGui_ImplVulkan_InitInfo info{};
+	info.Instance = m_vkInstance;
+	info.PhysicalDevice = m_physicalDevice;
+	info.Device = m_device;
+	info.QueueFamily = m_gfxQueueIndex;
+	info.Queue = m_deviceQueue;
+	info.DescriptorPool = m_descriptorPool;
+	info.MinImageCount = m_swapchain->GetImageCount();
+	info.ImageCount = m_swapchain->GetImageCount();
+	success = ImGui_ImplVulkan_Init(&info, m_renderPass);
+
+	// フォントテクスチャを転送する
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.pNext = nullptr;
+	allocInfo.commandPool = m_commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.pNext = nullptr;
+	beginInfo.flags = 0;
+	beginInfo.pInheritanceInfo = nullptr;
+
+	VkCommandBuffer command;
+	VkResult result = vkAllocateCommandBuffers(m_device, &allocInfo, &command);
+	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
+
+	result = vkBeginCommandBuffer(command, &beginInfo);
+	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
+	ImGui_ImplVulkan_CreateFontsTexture(command);
+	result = vkEndCommandBuffer(command);
+	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.pNext = nullptr;
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = &m_presentCompletedSem;
+	submitInfo.pWaitDstStageMask = nullptr;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &command;
+	submitInfo.signalSemaphoreCount = 0;
+	submitInfo.pSignalSemaphores = nullptr;
+	result = vkQueueSubmit(m_deviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	ThrowIfFailed(result, "vkQueueSubmit Failed.");
+
+	// フォントテクスチャ転送の完了を待つ
+	result = vkDeviceWaitIdle(m_device);
+	ThrowIfFailed(result, "vkDeviceWaitIdle Failed.");
+	vkFreeCommandBuffers(m_device, m_commandPool, 1, &command);
+}
+
+void UseImGuiApp::CleanupImGui()
+{
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+}
+
+void UseImGuiApp::RenderImGui(const VkCommandBuffer& command)
+{
+	// TODO:実装
+
 }
 
 bool UseImGuiApp::OnSizeChanged(uint32_t width, uint32_t height)
@@ -418,66 +491,6 @@ void UseImGuiApp::PrepareTeapot()
 
 		vkUpdateDescriptorSets(m_device, 1, &writeDescSet, 0, nullptr);
 	}
-}
-
-void UseImGuiApp::PrepareImGui()
-{
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	bool success = ImGui_ImplGlfw_InitForVulkan(m_window, true);
-
-	ImGui_ImplVulkan_InitInfo info{};
-	info.Instance = m_vkInstance;
-	info.PhysicalDevice = m_physicalDevice;
-	info.Device = m_device;
-	info.QueueFamily = m_gfxQueueIndex;
-	info.Queue = m_deviceQueue;
-	info.DescriptorPool = m_descriptorPool;
-	info.MinImageCount = m_swapchain->GetImageCount();
-	info.ImageCount = m_swapchain->GetImageCount();
-	success = ImGui_ImplVulkan_Init(&info, m_renderPass);
-
-	// フォントテクスチャを転送する
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.pNext = nullptr;
-	allocInfo.commandPool = m_commandPool;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.pNext = nullptr;
-	beginInfo.flags = 0;
-	beginInfo.pInheritanceInfo = nullptr;
-
-	VkCommandBuffer command;
-	VkResult result = vkAllocateCommandBuffers(m_device, &allocInfo, &command);
-	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
-
-	result = vkBeginCommandBuffer(command, &beginInfo);
-	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
-	ImGui_ImplVulkan_CreateFontsTexture(command);
-	result = vkEndCommandBuffer(command);
-	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
-
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.pNext = nullptr;
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = &m_presentCompletedSem;
-	submitInfo.pWaitDstStageMask = nullptr;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &command;
-	submitInfo.signalSemaphoreCount = 0;
-	submitInfo.pSignalSemaphores = nullptr;
-	result = vkQueueSubmit(m_deviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	ThrowIfFailed(result, "vkQueueSubmit Failed.");
-
-	// フォントテクスチャ転送の完了を待つ
-	result = vkDeviceWaitIdle(m_device);
-	ThrowIfFailed(result, "vkDeviceWaitIdle Failed.");
-	vkFreeCommandBuffers(m_device, m_commandPool, 1, &command);
 }
 
 void UseImGuiApp::CreatePipeline()
