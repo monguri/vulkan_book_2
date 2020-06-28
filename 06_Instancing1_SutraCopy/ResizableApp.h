@@ -46,5 +46,7 @@ private:
 	void PrepareFramebuffers();
 	void PrepareTeapot();
 	void CreatePipeline();
+
+	void RenderImGui(VkCommandBuffer command);
 };
 
