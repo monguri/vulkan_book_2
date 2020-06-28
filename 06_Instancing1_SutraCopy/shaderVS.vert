@@ -9,27 +9,27 @@ layout(location=2) out vec4 outWorldPos;
 
 out gl_PerVertex
 {
-  vec4 gl_Position;
+	vec4 gl_Position;
 };
-
 
 layout(set=0, binding=0)
 uniform SceneParameters
 {
-  mat4  world;
-  mat4  view;
-  mat4  proj;
-  vec4  lightPos;
-  vec4  cameraPos;
+	mat4 world;
+	mat4 view;
+	mat4 proj;
+	vec4 lightPos;
+	vec4 cameraPos;
 };
 
 void main()
 {
-  gl_Position = proj * view * world * inPos;
-  
-  vec3 worldNormal = mat3(world) * inNormal;
-  float l = dot(worldNormal, vec3(0, 1,0)) * 0.5 + 0.5;
-  outColor = vec4(l);
-  outWorldPos = world * inPos;
-  outNormal = worldNormal;
+	gl_Position = proj * view * world * inPos;
+
+	vec3 worldNormal = mat3(world) * inNormal;
+	float l = dot(worldNormal, vec3(0.0f, 1.0f, 0.0f)) * 0.5f + 0.5f;
+	outColor = vec4(l);
+	outWorldPos = world * inPos;
+	outNormal = worldNormal;
 }
+

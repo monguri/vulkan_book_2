@@ -5,47 +5,46 @@
 class ResizableApp : public VulkanAppBase
 {
 public:
-  ResizableApp();
+	virtual void Prepare() override;
+	virtual void Cleanup() override;
+	virtual void Render() override;
 
-  virtual void Prepare();
-  virtual void Cleanup();
-  virtual void Render();
-
-  virtual bool OnSizeChanged(uint32_t width, uint32_t height);
-
-  struct ShaderParameters
-  {
-    glm::mat4 world;
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::vec4 lightPos;
-    glm::vec4 cameraPos;
-  };
+	virtual bool OnSizeChanged(uint32_t width, uint32_t height) override;
 
 private:
-  void CreateRenderPass();
-  void PrepareFramebuffers();
-  void PrepareTeapot();
-  void CreatePipeline();
-private:
-  VkRenderPass m_renderPass;
-  ImageObject m_depthBuffer;
+	VkRenderPass m_renderPass;
+	ImageObject m_depthBuffer;
+	std::vector<VkFramebuffer> m_framebuffers;
+	std::vector<VkFence> m_commandFences;
+	std::vector<VkCommandBuffer> m_commandBuffers;
+	VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
+	std::vector<VkDescriptorSet> m_descriptorSets;
+	VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+	VkPipeline m_pipeline = nullptr;
 
-  std::vector<VkFramebuffer> m_framebuffers;
-  std::vector<VkFence> m_commandFences;
-  std::vector<VkCommandBuffer> m_commandBuffers;
+	struct ModelData
+	{
+		BufferObject vertexBuffer;
+		BufferObject indexBuffer;
+		uint32_t vertexCount;
+		uint32_t indexCount;
+	};
+	ModelData m_teapot;
 
-  VkDescriptorSetLayout m_descriptorSetLayout;
-  std::vector<VkDescriptorSet> m_descriptorSets;
-  VkPipelineLayout m_pipelineLayout;
-  VkPipeline    m_pipeline;
-  struct ModelData
-  {
-    BufferObject vertexBuffer;
-    BufferObject indexBuffer;
-    uint32_t vertexCount;
-    uint32_t indexCount;
-  };
-  ModelData m_teapot;
-  std::vector<BufferObject> m_uniformBuffers;
+	struct ShaderParameters
+	{
+		glm::mat4 world;
+		glm::mat4 view;
+		glm::mat4 proj;
+		glm::vec4 lightPos;
+		glm::vec4 cameraPos;
+	};
+
+	std::vector<BufferObject> m_uniformBuffers;
+
+	void CreateRenderPass();
+	void PrepareFramebuffers();
+	void PrepareTeapot();
+	void CreatePipeline();
 };
+
