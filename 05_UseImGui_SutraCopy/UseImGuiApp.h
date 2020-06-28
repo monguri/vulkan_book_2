@@ -48,6 +48,9 @@ private:
 
 	std::vector<BufferObject> m_uniformBuffers;
 
+	float m_factor = 0.0f;
+	float m_color[4];
+
 	void PrepareRenderPass();
 	void PrepareDepthbuffer();
 	void PrepareFramebuffers();

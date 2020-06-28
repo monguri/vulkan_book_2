@@ -259,8 +259,25 @@ void UseImGuiApp::CleanupImGui()
 
 void UseImGuiApp::RenderImGui(const VkCommandBuffer& command)
 {
-	// TODO:実装
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
 
+	// ImGuiウィジェットを描画する
+	ImGui::Begin("Information");
+	ImGui::Text("Hello, ImGui world");
+	ImGui::Text("Framerate(avg) %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+	if (ImGui::Button("Button"))
+	{
+		// ボタンが押下されたときの処理.
+	}
+	ImGui::SliderFloat("Factor", &m_factor, 0.0f, 100.0f);
+	ImGui::ColorPicker4("Color", m_color);
+	ImGui::End();
+
+	ImGui::Render();
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command);
 }
 
 bool UseImGuiApp::OnSizeChanged(uint32_t width, uint32_t height)
