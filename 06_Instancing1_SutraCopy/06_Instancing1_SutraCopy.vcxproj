@@ -91,7 +91,7 @@
     <ClCompile Include="..\common\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\common\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="ResizableApp.cpp" />
+    <ClCompile Include="InstancingApp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\commonSutraCopy\Swapchain.h" />
@@ -106,7 +106,7 @@
     <ClInclude Include="..\common\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\common\imgui\imstb_textedit.h" />
     <ClInclude Include="..\common\imgui\imstb_truetype.h" />
-    <ClInclude Include="ResizableApp.h" />
+    <ClInclude Include="InstancingApp.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

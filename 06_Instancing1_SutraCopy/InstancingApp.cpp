@@ -1,4 +1,4 @@
-#include "ResizableApp.h"
+#include "InstancingApp.h"
 #include "VulkanBookUtil.h"
 #include "TeapotModel.h"
 #include <array>
@@ -9,7 +9,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-void ResizableApp::Prepare()
+void InstancingApp::Prepare()
 {
 	CreateRenderPass();
 
@@ -92,7 +92,7 @@ void ResizableApp::Prepare()
 	vkDeviceWaitIdle(m_device);
 }
 
-void ResizableApp::Cleanup()
+void InstancingApp::Cleanup()
 {
 	DestroyBuffer(m_teapot.vertexBuffer);
 	DestroyBuffer(m_teapot.indexBuffer);
@@ -125,7 +125,7 @@ void ResizableApp::Cleanup()
 	ImGui::DestroyContext();
 }
 
-void ResizableApp::Render()
+void InstancingApp::Render()
 {
 	if (m_isMinimizedWindow)
 	{
@@ -250,7 +250,7 @@ void ResizableApp::Render()
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
 }
 
-bool ResizableApp::OnSizeChanged(uint32_t width, uint32_t height)
+bool InstancingApp::OnSizeChanged(uint32_t width, uint32_t height)
 {
 	bool result = VulkanAppBase::OnSizeChanged(width, height);
 	if (result)
@@ -269,7 +269,7 @@ bool ResizableApp::OnSizeChanged(uint32_t width, uint32_t height)
 	return result;
 }
 
-void ResizableApp::RenderImGui(VkCommandBuffer command)
+void InstancingApp::RenderImGui(VkCommandBuffer command)
 {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -289,7 +289,7 @@ void ResizableApp::RenderImGui(VkCommandBuffer command)
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command);
 }
 
-void ResizableApp::CreateRenderPass()
+void InstancingApp::CreateRenderPass()
 {
 	std::array<VkAttachmentDescription, 2> attachments;
 	VkAttachmentDescription& colorTarget = attachments[0];
@@ -352,7 +352,7 @@ void ResizableApp::CreateRenderPass()
 	ThrowIfFailed(result, "vkCreateRenderPass Failed.");
 }
 
-void ResizableApp::PrepareFramebuffers()
+void InstancingApp::PrepareFramebuffers()
 {
 	uint32_t imageCount = m_swapchain->GetImageCount();
 	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
@@ -368,7 +368,7 @@ void ResizableApp::PrepareFramebuffers()
 	}
 }
 
-void ResizableApp::PrepareTeapot()
+void InstancingApp::PrepareTeapot()
 {
 	// ステージ用のVBとIB、ターゲットのVBとIBの用意
 	uint32_t bufferSizeVB = uint32_t(sizeof(TeapotModel::TeapotVerticesPN));
@@ -479,7 +479,7 @@ void ResizableApp::PrepareTeapot()
 	}
 }
 
-void ResizableApp::CreatePipeline()
+void InstancingApp::CreatePipeline()
 {
 	// 頂点の入力の設定
 	uint32_t stride = uint32_t(sizeof(TeapotModel::Vertex));

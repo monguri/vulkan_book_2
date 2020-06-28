@@ -1,8 +1,8 @@
-#include "ResizableApp.h"
+#include "InstancingApp.h"
 #include "VulkanBookUtil.h"
 
 const int WindowWidth = 800, WindowHeight = 600;
-const char* AppTile = "ResizableWindow";
+const char* AppTile = "Instancing";
 
 static void KeyboardInputCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -102,7 +102,7 @@ int _stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
 	glfwSetScrollCallback(window, MouseWheelCallback);
 	glfwSetWindowSizeCallback(window, WindowResizeCallback);
 
-	ResizableApp theApp;
+	InstancingApp theApp;
 	glfwSetWindowUserPointer(window, &theApp);
 
 	try

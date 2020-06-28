@@ -2,7 +2,7 @@
 #include "VulkanAppBase.h"
 #include <glm/glm.hpp>
 
-class ResizableApp : public VulkanAppBase
+class InstancingApp : public VulkanAppBase
 {
 public:
 	virtual void Prepare() override;
