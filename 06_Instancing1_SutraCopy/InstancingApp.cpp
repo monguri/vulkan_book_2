@@ -227,7 +227,7 @@ void InstancingApp::Render()
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
 	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	VkDeviceSize offsets[] = {0};
+	VkDeviceSize offsets[] = {0, 0};
 	VkBuffer vertexStreams[] = {
 		m_teapot.vertexBuffer.buffer,
 		m_instanceData.buffer
@@ -505,13 +505,13 @@ void InstancingApp::PrepareInstanceData()
 	{
 		data[i].offsetPosition.x = (i % 6) * 3.0f;
 		data[i].offsetPosition.y = 0.0f;
-		data[i].offsetPosition.z = (i / 6) * 3.0f;
+		data[i].offsetPosition.z = (i / 6) * -3.0f;
 		data[i].color = colorSet[i % _countof(colorSet)];
 	}
 
 	void* p = nullptr;
 	vkMapMemory(m_device, stageBuf.memory, 0, VK_WHOLE_SIZE, 0, &p);
-	memcpy(p, TeapotModel::TeapotVerticesPN, bufferSize);
+	memcpy(p, data.data(), bufferSize);
 	vkUnmapMemory(m_device, stageBuf.memory);
 
 	// ターゲットのVBとIBにデータをコピーするコマンドの実行
