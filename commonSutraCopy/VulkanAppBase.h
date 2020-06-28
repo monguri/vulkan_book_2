@@ -24,7 +24,7 @@ class VulkanObjectStore
 public:
 	VulkanObjectStore(std::function<void(T)> disposer) : m_disposeFunc(disposer) {}
 
-	void CleanUp()
+	void Cleanup()
 	{
 		std::for_each(m_storeMap.begin(), m_storeMap.end(), [&](const std::pair<std::string, T>& v) { m_disposeFunc(v.second); });
 	}

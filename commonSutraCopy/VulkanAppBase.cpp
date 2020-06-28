@@ -181,9 +181,9 @@ void VulkanAppBase::Terminate()
 	DisableDebugReport();
 #endif
 
-	m_renderPassStore->CleanUp();
-	m_descriptorSetLayoutStore->CleanUp();
-	m_pipelineLayoutStore->CleanUp();
+	m_renderPassStore->Cleanup();
+	m_descriptorSetLayoutStore->Cleanup();
+	m_pipelineLayoutStore->Cleanup();
 	vkDestroySemaphore(m_device, m_presentCompletedSem, nullptr);
 	vkDestroySemaphore(m_device, m_renderCompletedSem, nullptr);
 
@@ -525,13 +525,13 @@ void VulkanAppBase::FinishCommandBuffer(VkCommandBuffer command)
 	VkResult result = vkEndCommandBuffer(command);
 	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
 
-	VkFenceCreateInfo ci{};
-	ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	ci.pNext = nullptr;
-	ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+	VkFenceCreateInfo fenceCI{};
+	fenceCI.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceCI.pNext = nullptr;
+	fenceCI.flags = 0;
 
 	VkFence fence = VK_NULL_HANDLE;
-	result = vkCreateFence(m_device, &ci, nullptr, &fence);
+	result = vkCreateFence(m_device, &fenceCI, nullptr, &fence);
 	ThrowIfFailed(result, "vkCreateFence Failed.");
 
 	VkSubmitInfo submitInfo{};
@@ -564,3 +564,4 @@ void VulkanAppBase::MsgLoopMinimizedWindow()
 		glfwWaitEvents();
 	} while (width == 0 || height == 0);
 }
+
