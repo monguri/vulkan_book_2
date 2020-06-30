@@ -9,32 +9,18 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "06_Instancing2_SutraCopy", 
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
-		Debug|x86 = Debug|x86
-		Release|Any CPU = Release|Any CPU
 		Release|x64 = Release|x64
-		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Debug|Any CPU.ActiveCfg = Debug|x64
 		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Debug|x64.ActiveCfg = Debug|x64
 		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Debug|x64.Build.0 = Debug|x64
-		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Debug|x86.ActiveCfg = Debug|x64
-		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Release|Any CPU.ActiveCfg = Release|x64
 		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Release|x64.ActiveCfg = Release|x64
 		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Release|x64.Build.0 = Release|x64
-		{0A90B3DF-91A0-4B7C-AA9F-E0D7BA1866A4}.Release|x86.ActiveCfg = Release|x64
-		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Debug|Any CPU.ActiveCfg = Debug|Win32
 		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Debug|x64.ActiveCfg = Debug|x64
 		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Debug|x64.Build.0 = Debug|x64
-		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Debug|x86.ActiveCfg = Debug|Win32
-		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Debug|x86.Build.0 = Debug|Win32
-		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Release|Any CPU.ActiveCfg = Release|Win32
 		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Release|x64.ActiveCfg = Release|x64
 		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Release|x64.Build.0 = Release|x64
-		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Release|x86.ActiveCfg = Release|Win32
-		{41E338E9-D7B1-4593-9738-392ABFA959BB}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
