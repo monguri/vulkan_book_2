@@ -1,6 +1,8 @@
 #include "InstancingApp.h"
 #include "VulkanBookUtil.h"
 #include "TeapotModel.h"
+
+#include <random>
 #include <array>
 
 #include "imgui.h"
@@ -53,6 +55,8 @@ void InstancingApp::Prepare()
 	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
 
 	PrepareTeapot();
+	PrepareInstanceData();
+	PrepareDescriptors();
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
 	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -64,8 +68,6 @@ void InstancingApp::Prepare()
 	pipelineLayoutCI.pPushConstantRanges = nullptr;
 	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
-
-	PrepareInstanceData();
 
 	CreatePipeline();
 
@@ -104,9 +106,20 @@ void InstancingApp::Prepare()
 
 void InstancingApp::Cleanup()
 {
+	for (const BufferObject& ubo : m_uniformBuffers)
+	{
+		DestroyBuffer(ubo);
+	}
+	m_uniformBuffers.clear();
+
+	for (const BufferObject& ubo : m_instanceUniforms)
+	{
+		DestroyBuffer(ubo);
+	}
+	m_instanceUniforms.clear();
+
 	DestroyBuffer(m_teapot.vertexBuffer);
 	DestroyBuffer(m_teapot.indexBuffer);
-	DestroyBuffer(m_instanceData);
 
 	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_descriptorSets.size()), m_descriptorSets.data());
 	m_descriptorSets.clear();
@@ -178,8 +191,6 @@ void InstancingApp::Render()
 
 	{
 		ShaderParameters shaderParam{};
-		shaderParam.world = glm::mat4(1.0f);
-
 		shaderParam.view = glm::lookAtRH(
 			glm::vec3(3.0f, 5.0f, 10.0f - m_cameraOffset),
 			glm::vec3(3.0f, 2.0f, 0.0f - m_cameraOffset),
@@ -227,12 +238,8 @@ void InstancingApp::Render()
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
 	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	VkDeviceSize offsets[] = {0, 0};
-	VkBuffer vertexStreams[] = {
-		m_teapot.vertexBuffer.buffer,
-		m_instanceData.buffer
-	};
-	vkCmdBindVertexBuffers(command, 0, _countof(vertexStreams), vertexStreams, offsets);
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
 	vkCmdDrawIndexed(command, m_teapot.indexCount, m_instanceCount, 0, 0, 0);
 	RenderImGui(command);
 
@@ -421,15 +428,72 @@ void InstancingApp::PrepareTeapot()
 	DestroyBuffer(stageVB);
 	DestroyBuffer(stageIB);
 
-	// ディスクリプタセットレイアウト
-	VkDescriptorSetLayoutBinding descSetLayoutBindings[1];
+	// 定数バッファの準備
+	uint32_t imageCount = m_swapchain->GetImageCount();
+	VkMemoryPropertyFlags uboMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	m_uniformBuffers.resize(imageCount);
 
-	VkDescriptorSetLayoutBinding bindingUBO{};
-	bindingUBO.binding = 0;
-	bindingUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	bindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-	bindingUBO.descriptorCount = 1;
-	descSetLayoutBindings[0] = bindingUBO;
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		uint32_t buffersize = uint32_t(sizeof(ShaderParameters));
+		m_uniformBuffers[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
+	}
+}
+
+void InstancingApp::PrepareInstanceData()
+{
+	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+	// インスタンシング用のユニフォームバッファを準備
+	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceDataMax;
+	m_instanceUniforms.resize(m_swapchain->GetImageCount());
+	for (BufferObject& ubo : m_instanceUniforms)
+	{
+		ubo = CreateBuffer(bufferSize, usage, memoryProps);
+	}
+
+	std::random_device rnd;
+	std::vector<InstanceData> data(InstanceDataMax);
+
+	for (uint32_t i = 0; i < InstanceDataMax; ++i)
+	{
+		const glm::vec3& axisX = glm::vec3(1.0f, 0.0f, 0.0f);
+		const glm::vec3& axisZ = glm::vec3(0.0f, 0.0f, 1.0f);
+		float k = float(rnd() % 360);
+		float x = (i % 6) * 3.0f;
+		float z = (i / 6) * -3.0f;
+
+		glm::mat4 mat(1.0f);
+		mat = glm::translate(mat, glm::vec3(x, 0.0f, z));
+		mat = glm::rotate(mat, k, axisX);
+		mat = glm::rotate(mat, k, axisZ);
+
+		data[i].world = mat;
+		data[i].color = colorSet[i % _countof(colorSet)];
+	}
+
+	for (const BufferObject& ubo : m_instanceUniforms)
+	{
+		void* p = nullptr;
+		vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+		memcpy(p, data.data(), bufferSize);
+		vkUnmapMemory(m_device, ubo.memory);
+	}
+}
+
+void InstancingApp::PrepareDescriptors()
+{
+	// ディスクリプタセットレイアウト
+	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
+	descSetLayoutBindings[0].binding = 0;
+	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descSetLayoutBindings[0].descriptorCount = 1;
+	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	descSetLayoutBindings[1].binding = 1;
+	descSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descSetLayoutBindings[1].descriptorCount = 1;
+	descSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
 	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -440,6 +504,7 @@ void InstancingApp::PrepareTeapot()
 	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
 
 	// ディスクリプタセット
+	uint32_t imageCount = m_swapchain->GetImageCount();
 	VkDescriptorSetAllocateInfo descriptorSetAI{};
 	descriptorSetAI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptorSetAI.pNext = nullptr;
@@ -447,7 +512,6 @@ void InstancingApp::PrepareTeapot()
 	descriptorSetAI.descriptorSetCount = 1;
 	descriptorSetAI.pSetLayouts = &m_descriptorSetLayout;
 
-	uint32_t imageCount = m_swapchain->GetImageCount();
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
 		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
@@ -457,72 +521,42 @@ void InstancingApp::PrepareTeapot()
 		m_descriptorSets.push_back(descriptorSet);
 	}
 
-	// 定数バッファの準備
-	VkMemoryPropertyFlags uboMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	m_uniformBuffers.resize(imageCount);
-
-	for (uint32_t i = 0; i < imageCount; ++i)
-	{
-		uint32_t buffersize = uint32_t(sizeof(ShaderParameters));
-		m_uniformBuffers[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
-	}
-
+	// 確保したディスクリプタに書き込む.
+	// [0] View,Projの定数バッファ.
+	// [1] インスタンシング用のバッファ.
 	for (size_t i = 0; i < imageCount; ++i)
 	{
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = m_uniformBuffers[i].buffer;
-		bufferInfo.offset = 0;
-		bufferInfo.range = VK_WHOLE_SIZE;
+		VkDescriptorBufferInfo uniformBufferInfo{};
+		uniformBufferInfo.buffer = m_uniformBuffers[i].buffer;
+		uniformBufferInfo.offset = 0;
+		uniformBufferInfo.range = VK_WHOLE_SIZE;
 
-		VkWriteDescriptorSet writeDescSet{};
-		writeDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writeDescSet.pNext = nullptr;
-		writeDescSet.dstSet = m_descriptorSets[i],
-		writeDescSet.dstBinding = 0;
-		writeDescSet.dstArrayElement = 0;
-		writeDescSet.descriptorCount = 1;
-		writeDescSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		writeDescSet.pImageInfo = nullptr;
-		writeDescSet.pBufferInfo = &bufferInfo;
-		writeDescSet.pTexelBufferView = nullptr;
+		VkDescriptorBufferInfo instanceBufferInfo{};
+		instanceBufferInfo.buffer = m_instanceUniforms[i].buffer;
+		instanceBufferInfo.offset = 0;
+		instanceBufferInfo.range = VK_WHOLE_SIZE;
 
-		vkUpdateDescriptorSets(m_device, 1, &writeDescSet, 0, nullptr);
+		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
+			m_descriptorSets[i],
+			0,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+		);
+		descSetSceneUB.pBufferInfo = &uniformBufferInfo;
+
+		VkWriteDescriptorSet descSetInstUB = book_util::PrepareWriteDescriptorSet(
+			m_descriptorSets[i],
+			1,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+		);
+		descSetInstUB.pBufferInfo = &instanceBufferInfo;
+
+		std::array<VkWriteDescriptorSet, 2> writeDescriptorSets{
+			descSetSceneUB, descSetInstUB
+		};
+
+		uint32_t count = uint32_t(writeDescriptorSets.size());
+		vkUpdateDescriptorSets(m_device, count, writeDescriptorSets.data(), 0, nullptr);
 	}
-}
-
-void InstancingApp::PrepareInstanceData()
-{
-	VkMemoryPropertyFlags srcMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	VkMemoryPropertyFlags dstMemoryProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	VkBufferUsageFlags usageVB = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	// インスタンシング用のバッファを準備
-	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceDataMax;
-	const BufferObject& stageBuf = CreateBuffer(bufferSize, usageVB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, srcMemoryProps);
-	m_instanceData = CreateBuffer(bufferSize, usageVB | VK_BUFFER_USAGE_TRANSFER_DST_BIT, dstMemoryProps);
-
-	std::vector<InstanceData> data(InstanceDataMax);
-	for (uint32_t i = 0; i < InstanceDataMax; ++i)
-	{
-		data[i].offsetPosition.x = (i % 6) * 3.0f;
-		data[i].offsetPosition.y = 0.0f;
-		data[i].offsetPosition.z = (i / 6) * -3.0f;
-		data[i].color = colorSet[i % _countof(colorSet)];
-	}
-
-	void* p = nullptr;
-	vkMapMemory(m_device, stageBuf.memory, 0, VK_WHOLE_SIZE, 0, &p);
-	memcpy(p, data.data(), bufferSize);
-	vkUnmapMemory(m_device, stageBuf.memory);
-
-	// ターゲットのVBとIBにデータをコピーするコマンドの実行
-	VkCommandBuffer command = CreateCommandBuffer();
-	VkBufferCopy copyRegion{};
-	copyRegion.size = bufferSize;
-	vkCmdCopyBuffer(command, stageBuf.buffer, m_instanceData.buffer, 1, &copyRegion);
-	FinishCommandBuffer(command);
-	vkFreeCommandBuffers(m_device, m_commandPool, 1, &command);
-
-	DestroyBuffer(stageBuf);
 }
 
 void InstancingApp::CreatePipeline()
@@ -547,14 +581,6 @@ void InstancingApp::CreatePipeline()
 	inputAttribs[1].binding = 0;
 	inputAttribs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 	inputAttribs[1].offset = offsetof(TeapotModel::Vertex, Normal);
-	inputAttribs[2].location = 2;
-	inputAttribs[2].binding = 1;
-	inputAttribs[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-	inputAttribs[2].offset = offsetof(InstanceData, offsetPosition);
-	inputAttribs[3].location = 3;
-	inputAttribs[3].binding = 1;
-	inputAttribs[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	inputAttribs[3].offset = offsetof(InstanceData, color);
 
 	VkPipelineVertexInputStateCreateInfo pipelineVisCI{};
 	pipelineVisCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
