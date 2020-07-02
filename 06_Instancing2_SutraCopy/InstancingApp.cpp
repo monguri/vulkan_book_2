@@ -561,18 +561,14 @@ void InstancingApp::PrepareDescriptors()
 
 void InstancingApp::CreatePipeline()
 {
-	uint32_t vertexStride = uint32_t(sizeof(TeapotModel::Vertex));
-	uint32_t instanceStride = uint32_t(sizeof(InstanceData));
+	uint32_t stride = uint32_t(sizeof(TeapotModel::Vertex));
 
-	std::array<VkVertexInputBindingDescription, 2> vibDesc{};
-	vibDesc[0].binding = 0;
-	vibDesc[0].stride = vertexStride;
-	vibDesc[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	vibDesc[1].binding = 1;
-	vibDesc[1].stride = instanceStride;
-	vibDesc[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+	VkVertexInputBindingDescription vibDesc{};
+	vibDesc.binding = 0;
+	vibDesc.stride = stride;
+	vibDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	std::array<VkVertexInputAttributeDescription, 4> inputAttribs{};
+	std::array<VkVertexInputAttributeDescription, 2> inputAttribs{};
 	inputAttribs[0].location = 0;
 	inputAttribs[0].binding = 0;
 	inputAttribs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -586,8 +582,8 @@ void InstancingApp::CreatePipeline()
 	pipelineVisCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	pipelineVisCI.pNext = nullptr;
 	pipelineVisCI.flags = 0;
-	pipelineVisCI.vertexBindingDescriptionCount = uint32_t(vibDesc.size());
-	pipelineVisCI.pVertexBindingDescriptions = vibDesc.data();
+	pipelineVisCI.vertexBindingDescriptionCount = 1;
+	pipelineVisCI.pVertexBindingDescriptions = &vibDesc;
 	pipelineVisCI.vertexAttributeDescriptionCount = uint32_t(inputAttribs.size());
 	pipelineVisCI.pVertexAttributeDescriptions = inputAttribs.data();
 
