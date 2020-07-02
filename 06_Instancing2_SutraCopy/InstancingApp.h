@@ -35,7 +35,7 @@ private:
 		uint32_t indexCount;
 	};
 	ModelData m_teapot;
-	int m_instanceCount = 100;
+	int m_instanceCount = 200;
 	float m_cameraOffset = 0.0f;
 
 	struct ShaderParameters
