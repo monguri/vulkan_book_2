@@ -5,10 +5,6 @@
 #include <random>
 #include <array>
 
-#include "imgui.h"
-#include "examples/imgui_impl_vulkan.h"
-#include "examples/imgui_impl_glfw.h"
-
 #include <glm/gtc/matrix_transform.hpp>
 
 static glm::vec4 colorSet[] = {
@@ -70,38 +66,6 @@ void RenderToTextureApp::Prepare()
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 
 	CreatePipeline();
-
-	// ImGui
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGui_ImplGlfw_InitForVulkan(m_window, true);
-
-	ImGui_ImplVulkan_InitInfo info{};
-	info.Instance = m_vkInstance;
-	info.PhysicalDevice = m_physicalDevice;
-	info.Device = m_device;
-	info.QueueFamily = m_gfxQueueIndex;
-	info.Queue = m_deviceQueue;
-	info.DescriptorPool = m_descriptorPool;
-	info.MinImageCount = imageCount;
-	info.ImageCount = imageCount;
-	ImGui_ImplVulkan_Init(&info, m_renderPass);
-
-	VkCommandBufferBeginInfo beginInfo{
-	VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-	nullptr,
-	VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-	};
-	vkBeginCommandBuffer(m_commandBuffers[0], &beginInfo);
-	ImGui_ImplVulkan_CreateFontsTexture(m_commandBuffers[0]);
-	vkEndCommandBuffer(m_commandBuffers[0]);
-	VkSubmitInfo submitInfo{
-	VK_STRUCTURE_TYPE_SUBMIT_INFO,nullptr,
-	};
-	submitInfo.pCommandBuffers = m_commandBuffers.data();
-	submitInfo.commandBufferCount = 1;
-	vkQueueSubmit(m_deviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkDeviceWaitIdle(m_device);
 }
 
 void RenderToTextureApp::Cleanup()
@@ -143,10 +107,6 @@ void RenderToTextureApp::Cleanup()
 
 	vkFreeCommandBuffers(m_device, m_commandPool, uint32_t(m_commandBuffers.size()), m_commandBuffers.data());
 	m_commandBuffers.clear();
-
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
 }
 
 void RenderToTextureApp::Render()
@@ -241,7 +201,6 @@ void RenderToTextureApp::Render()
 	VkDeviceSize offsets[] = {0};
 	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
 	vkCmdDrawIndexed(command, m_teapot.indexCount, m_instanceCount, 0, 0, 0);
-	RenderImGui(command);
 
 	vkCmdEndRenderPass(command);
 	result = vkEndCommandBuffer(command);
@@ -285,26 +244,6 @@ bool RenderToTextureApp::OnSizeChanged(uint32_t width, uint32_t height)
 	}
 
 	return result;
-}
-
-void RenderToTextureApp::RenderImGui(VkCommandBuffer command)
-{
-	ImGui_ImplVulkan_NewFrame();
-	ImGui_ImplGlfw_NewFrame();
-	ImGui::NewFrame();
-
-	{
-		ImGui::Begin("Control");
-		ImGui::Text("DrawTeapot");
-		float framerate = ImGui::GetIO().Framerate;
-		ImGui::Text("Framerate(avg) %.3f ms/frame", 1000.0f / framerate);
-		ImGui::SliderInt("Count", &m_instanceCount, 1, InstanceDataMax);
-		ImGui::SliderFloat("Camera", &m_cameraOffset, 0.0f, 50.0f);
-		ImGui::End();
-	}
-
-	ImGui::Render();
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command);
 }
 
 void RenderToTextureApp::CreateRenderPass()
