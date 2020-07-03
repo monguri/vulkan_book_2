@@ -13,6 +13,11 @@ public:
 
 	enum
 	{
+		TextureWidth = 512,
+		TextureHeight = 512,
+	};
+	enum
+	{
 		InstanceDataMax = 500
 	};
 
@@ -52,8 +57,11 @@ private:
 	std::vector<BufferObject> m_uniformBuffers;
 	std::vector<BufferObject> m_instanceUniforms;
 
+	ImageObject m_colorTarget, m_depthTarget;
+
 	void CreateRenderPass();
 	void PrepareFramebuffers();
+	void PrepareRenderTexture();
 	void PrepareTeapot();
 	void PrepareInstanceData();
 	void PrepareDescriptors();
