@@ -71,15 +71,15 @@ public:
 
 	struct BufferObject
 	{
-		VkBuffer buffer;
-		VkDeviceMemory memory;
+		VkBuffer buffer = VK_NULL_HANDLE;
+		VkDeviceMemory memory = VK_NULL_HANDLE;
 	};
 
 	struct ImageObject
 	{
-		VkImage image;
-		VkDeviceMemory memory;
-		VkImageView view;
+		VkImage image = VK_NULL_HANDLE;
+		VkDeviceMemory memory = VK_NULL_HANDLE;
+		VkImageView view = VK_NULL_HANDLE;
 	};
 
 	BufferObject CreateBuffer(uint32_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props);
