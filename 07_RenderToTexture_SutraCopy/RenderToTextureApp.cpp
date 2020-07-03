@@ -94,8 +94,6 @@ void RenderToTextureApp::Cleanup()
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 	vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 
-	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
-
 	DestroyImage(m_depthBuffer);
 	uint32_t count = uint32_t(m_framebuffers.size());
 	DestroyFramebuffers(count, m_framebuffers.data());
@@ -136,10 +134,11 @@ void RenderToTextureApp::Render()
 	renderArea.offset = VkOffset2D{ 0, 0 };
 	renderArea.extent = m_swapchain->GetSurfaceExtent();
 
+	VkRenderPass renderPass = GetRenderPass("main");
 	VkRenderPassBeginInfo rpBI{};
 	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	rpBI.pNext = nullptr;
-	rpBI.renderPass = m_renderPass;
+	rpBI.renderPass = renderPass;
 	rpBI.framebuffer = m_framebuffers[imageIndex];
 	rpBI.renderArea = renderArea;
 	rpBI.clearValueCount = uint32_t(clearValue.size());
@@ -307,8 +306,10 @@ void RenderToTextureApp::CreateRenderPass()
 	rpCI.dependencyCount = 0;
 	rpCI.pDependencies = nullptr;
 
-	VkResult result = vkCreateRenderPass(m_device, &rpCI, nullptr, &m_renderPass);
+	VkRenderPass renderPass;
+	VkResult result = vkCreateRenderPass(m_device, &rpCI, nullptr, &renderPass);
 	ThrowIfFailed(result, "vkCreateRenderPass Failed.");
+	RegisterRenderPass("main", renderPass);
 }
 
 void RenderToTextureApp::PrepareFramebuffers()
@@ -323,7 +324,8 @@ void RenderToTextureApp::PrepareFramebuffers()
 		views.push_back(m_swapchain->GetImageView(i));
 		views.push_back(m_depthBuffer.view);
 
-		m_framebuffers[i] = CreateFramebuffer(m_renderPass, extent.width, extent.height, uint32_t(views.size()), views.data());
+		VkRenderPass renderPass = GetRenderPass("main");
+		m_framebuffers[i] = CreateFramebuffer(renderPass, extent.width, extent.height, uint32_t(views.size()), views.data());
 	}
 }
 
@@ -716,6 +718,7 @@ void RenderToTextureApp::CreatePipeline()
 	pipelineDynamicStateCI.pDynamicStates = dynamicStates.data();
 
 	// パイプライン構築
+	VkRenderPass renderPass = GetRenderPass("main");
 	VkGraphicsPipelineCreateInfo pipelineCI{};
 	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineCI.pNext = nullptr;
@@ -731,7 +734,7 @@ void RenderToTextureApp::CreatePipeline()
 	pipelineCI.pColorBlendState = &colorBlendStateCI;
 	pipelineCI.pDynamicState = &pipelineDynamicStateCI;
 	pipelineCI.layout = m_pipelineLayout;
-	pipelineCI.renderPass = m_renderPass;
+	pipelineCI.renderPass = renderPass;
 	pipelineCI.subpass = 0;
 	pipelineCI.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineCI.basePipelineIndex = 0;

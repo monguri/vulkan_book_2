@@ -29,14 +29,14 @@ public:
 		std::for_each(m_storeMap.begin(), m_storeMap.end(), [&](const std::pair<std::string, T>& v) { m_disposeFunc(v.second); });
 	}
 
-	void Register(const std::string& name, T data)
+	void Register(const std::string& name, const T& data)
 	{
 		m_storeMap[name] = data;
 	}
 
 	T Get(const std::string& name) const
 	{
-		const std::pair<std::string, T>& it = m_storeMap.find(name);
+		auto it = m_storeMap.find(name);
 		if (it == m_storeMap.end())
 		{
 			return VK_NULL_HANDLE;
@@ -68,6 +68,9 @@ public:
 	virtual void Prepare() {};
 	virtual void Cleanup() {};
 	virtual void Render() = 0;
+
+	VkRenderPass GetRenderPass(const std::string& name) { return m_renderPassStore->Get(name); }
+	void RegisterRenderPass(const std::string& name, const VkRenderPass& renderPass) { m_renderPassStore->Register(name, renderPass); }
 
 	struct BufferObject
 	{
