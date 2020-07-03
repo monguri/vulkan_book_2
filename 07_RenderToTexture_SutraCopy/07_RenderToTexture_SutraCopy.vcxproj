@@ -127,7 +127,7 @@
     <ClCompile Include="..\common\imgui\imgui_demo.cpp" />
     <ClCompile Include="..\common\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\common\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="InstancingApp.cpp" />
+    <ClCompile Include="RenderToTextureApp.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -142,7 +142,7 @@
     <ClInclude Include="..\common\imgui\imgui_internal.h" />
     <ClInclude Include="..\common\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\common\imgui\imstb_truetype.h" />
-    <ClInclude Include="InstancingApp.h" />
+    <ClInclude Include="RenderToTextureApp.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

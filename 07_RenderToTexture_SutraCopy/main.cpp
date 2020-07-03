@@ -1,4 +1,4 @@
-#include "InstancingApp.h"
+#include "RenderToTextureApp.h"
 #include "VulkanBookUtil.h"
 
 const int WindowWidth = 800, WindowHeight = 600;
