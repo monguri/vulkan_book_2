@@ -2,7 +2,7 @@
 #include "VulkanAppBase.h"
 #include <glm/glm.hpp>
 
-class InstancingApp : public VulkanAppBase
+class RenderToTextureApp : public VulkanAppBase
 {
 public:
 	virtual void Prepare() override;
