@@ -26,10 +26,6 @@ private:
 	std::vector<VkFramebuffer> m_framebuffers;
 	std::vector<VkFence> m_commandFences;
 	std::vector<VkCommandBuffer> m_commandBuffers;
-	VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-	std::vector<VkDescriptorSet> m_descriptorSets;
-	VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-	VkPipeline m_pipeline = nullptr;
 
 	struct ModelData
 	{
@@ -37,8 +33,21 @@ private:
 		BufferObject indexBuffer;
 		uint32_t vertexCount;
 		uint32_t indexCount;
+
+		std::vector<BufferObject> sceneUB;
+		std::vector<VkDescriptorSet> descriptorSet;
+
+		VkPipeline pipeline;
 	};
 	ModelData m_teapot;
+
+	struct LayoutInfo
+	{
+		VkDescriptorSetLayout descriptorSet = VK_NULL_HANDLE;
+		VkPipelineLayout pipeline = VK_NULL_HANDLE;
+	};
+	LayoutInfo m_layoutTeapot;
+
 	int m_instanceCount = 200;
 	float m_cameraOffset = 0.0f;
 
@@ -53,7 +62,6 @@ private:
 		glm::vec4 color;
 	};
 
-	std::vector<BufferObject> m_uniformBuffers;
 	std::vector<BufferObject> m_instanceUniforms;
 
 	ImageObject m_colorTarget, m_depthTarget;

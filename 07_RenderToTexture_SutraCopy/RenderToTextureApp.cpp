@@ -60,11 +60,11 @@ void RenderToTextureApp::Prepare()
 
 void RenderToTextureApp::Cleanup()
 {
-	for (const BufferObject& ubo : m_uniformBuffers)
+	for (const BufferObject& ubo : m_teapot.sceneUB)
 	{
 		DestroyBuffer(ubo);
 	}
-	m_uniformBuffers.clear();
+	m_teapot.sceneUB.clear();
 
 	for (const BufferObject& ubo : m_instanceUniforms)
 	{
@@ -75,12 +75,12 @@ void RenderToTextureApp::Cleanup()
 	DestroyBuffer(m_teapot.vertexBuffer);
 	DestroyBuffer(m_teapot.indexBuffer);
 
-	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_descriptorSets.size()), m_descriptorSets.data());
-	m_descriptorSets.clear();
+	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_teapot.descriptorSet.size()), m_teapot.descriptorSet.data());
+	m_teapot.descriptorSet.clear();
 
-	vkDestroyPipeline(m_device, m_pipeline, nullptr);
-	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
-	vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+	vkDestroyPipeline(m_device, m_teapot.pipeline, nullptr);
+	vkDestroyDescriptorSetLayout(m_device, m_layoutTeapot.descriptorSet, nullptr);
+	vkDestroyPipelineLayout(m_device, m_layoutTeapot.pipeline, nullptr);
 
 	DestroyImage(m_depthBuffer);
 	uint32_t count = uint32_t(m_framebuffers.size());
@@ -154,7 +154,7 @@ void RenderToTextureApp::Render()
 			1000.0f
 		);
 
-		const BufferObject& ubo = m_uniformBuffers[imageIndex];
+		const BufferObject& ubo = m_teapot.sceneUB[imageIndex];
 		void* p = nullptr;
 		result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
 		ThrowIfFailed(result, "vkMapMemory Failed.");
@@ -184,8 +184,8 @@ void RenderToTextureApp::Render()
 	vkCmdSetScissor(command, 0, 1, &scissor);
 	vkCmdSetViewport(command, 0, 1, &viewport);
 
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
+	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_teapot.pipeline);
+	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutTeapot.pipeline, 0, 1, &m_teapot.descriptorSet[imageIndex], 0, nullptr);
 	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 	VkDeviceSize offsets[] = {0};
 	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
@@ -544,15 +544,15 @@ void RenderToTextureApp::PrepareTeapot()
 	// 定数バッファの準備
 	uint32_t imageCount = m_swapchain->GetImageCount();
 	VkMemoryPropertyFlags uboMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	m_uniformBuffers.resize(imageCount);
+	m_teapot.sceneUB.resize(imageCount);
 
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
 		uint32_t buffersize = uint32_t(sizeof(ShaderParameters));
-		m_uniformBuffers[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
+		m_teapot.sceneUB[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
 	}
 
-	// ディスクリプタセットレイアウト
+	// teapot用のディスクリプタセット/レイアウトを準備
 	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
 	descSetLayoutBindings[0].binding = 0;
 	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -568,7 +568,7 @@ void RenderToTextureApp::PrepareTeapot()
 	descSetLayoutCI.pNext = nullptr;
 	descSetLayoutCI.bindingCount = _countof(descSetLayoutBindings);
 	descSetLayoutCI.pBindings = descSetLayoutBindings;
-	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &m_descriptorSetLayout);
+	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &m_layoutTeapot.descriptorSet);
 	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
 
 	// ディスクリプタセット
@@ -577,7 +577,7 @@ void RenderToTextureApp::PrepareTeapot()
 	descriptorSetAI.pNext = nullptr;
 	descriptorSetAI.descriptorPool = m_descriptorPool;
 	descriptorSetAI.descriptorSetCount = 1;
-	descriptorSetAI.pSetLayouts = &m_descriptorSetLayout;
+	descriptorSetAI.pSetLayouts = &m_layoutTeapot.descriptorSet;
 
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
@@ -585,7 +585,7 @@ void RenderToTextureApp::PrepareTeapot()
 		result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
 		ThrowIfFailed(result, "vkAllocateDescriptorSets Failed.");
 
-		m_descriptorSets.push_back(descriptorSet);
+		m_teapot.descriptorSet.push_back(descriptorSet);
 	}
 
 	// 確保したディスクリプタに書き込む.
@@ -594,7 +594,7 @@ void RenderToTextureApp::PrepareTeapot()
 	for (size_t i = 0; i < imageCount; ++i)
 	{
 		VkDescriptorBufferInfo uniformBufferInfo{};
-		uniformBufferInfo.buffer = m_uniformBuffers[i].buffer;
+		uniformBufferInfo.buffer = m_teapot.sceneUB[i].buffer;
 		uniformBufferInfo.offset = 0;
 		uniformBufferInfo.range = VK_WHOLE_SIZE;
 
@@ -604,14 +604,14 @@ void RenderToTextureApp::PrepareTeapot()
 		instanceBufferInfo.range = VK_WHOLE_SIZE;
 
 		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
-			m_descriptorSets[i],
+			m_teapot.descriptorSet[i],
 			0,
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
 		);
 		descSetSceneUB.pBufferInfo = &uniformBufferInfo;
 
 		VkWriteDescriptorSet descSetInstUB = book_util::PrepareWriteDescriptorSet(
-			m_descriptorSets[i],
+			m_teapot.descriptorSet[i],
 			1,
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
 		);
@@ -630,10 +630,10 @@ void RenderToTextureApp::PrepareTeapot()
 	pipelineLayoutCI.pNext = nullptr;
 	pipelineLayoutCI.flags = 0;
 	pipelineLayoutCI.setLayoutCount = 1;
-	pipelineLayoutCI.pSetLayouts = &m_descriptorSetLayout;
+	pipelineLayoutCI.pSetLayouts = &m_layoutTeapot.descriptorSet;
 	pipelineLayoutCI.pushConstantRangeCount = 0;
 	pipelineLayoutCI.pPushConstantRanges = nullptr;
-	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
+	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_layoutTeapot.pipeline);
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 }
 
@@ -799,12 +799,12 @@ void RenderToTextureApp::CreatePipeline()
 	pipelineCI.pDepthStencilState = &dsState;
 	pipelineCI.pColorBlendState = &colorBlendStateCI;
 	pipelineCI.pDynamicState = &pipelineDynamicStateCI;
-	pipelineCI.layout = m_pipelineLayout;
+	pipelineCI.layout = m_layoutTeapot.pipeline;
 	pipelineCI.renderPass = renderPass;
 	pipelineCI.subpass = 0;
 	pipelineCI.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineCI.basePipelineIndex = 0;
-	VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_pipeline);
+	VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_teapot.pipeline);
 	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
 
 	book_util::DestroyShaderModules(m_device, shaderStages);
