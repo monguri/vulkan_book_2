@@ -57,6 +57,7 @@ private:
 	std::vector<BufferObject> m_instanceUniforms;
 
 	ImageObject m_colorTarget, m_depthTarget;
+	VkFramebuffer m_renderTextureFB = VK_NULL_HANDLE;
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();

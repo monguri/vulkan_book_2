@@ -503,6 +503,12 @@ void RenderToTextureApp::PrepareRenderTexture()
 
 	m_colorTarget = colorTarget;
 	m_depthTarget = depthTarget;
+
+	std::vector<VkImageView> views;
+	views.push_back(m_colorTarget.view);
+	views.push_back(m_depthTarget.view);
+	VkRenderPass renderPass = GetRenderPass("render_target");
+	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
 }
 
 void RenderToTextureApp::PrepareTeapot()
