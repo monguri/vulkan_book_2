@@ -27,6 +27,12 @@ private:
 	std::vector<VkFence> m_commandFences;
 	std::vector<VkCommandBuffer> m_commandBuffers;
 
+	struct VertexPT
+	{
+		glm::vec3 position;
+		glm::vec2 uv;
+	};
+
 	struct ModelData
 	{
 		BufferObject vertexBuffer;
@@ -40,6 +46,7 @@ private:
 		VkPipeline pipeline;
 	};
 	ModelData m_teapot;
+	ModelData m_plane;
 
 	struct LayoutInfo
 	{
@@ -47,6 +54,7 @@ private:
 		VkPipelineLayout pipeline = VK_NULL_HANDLE;
 	};
 	LayoutInfo m_layoutTeapot;
+	LayoutInfo m_layoutPlane;
 
 	int m_instanceCount = 200;
 	float m_cameraOffset = 0.0f;
@@ -66,12 +74,15 @@ private:
 
 	ImageObject m_colorTarget, m_depthTarget;
 	VkFramebuffer m_renderTextureFB = VK_NULL_HANDLE;
+	VkSampler m_sampler = VK_NULL_HANDLE;
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();
 	void PrepareRenderTexture();
 	void PrepareTeapot();
+	void PreparePlane();
 	void PrepareInstanceData();
 	void CreatePipeline();
+	void DestroyModelData(ModelData& model);
 };
 

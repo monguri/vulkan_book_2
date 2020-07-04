@@ -54,38 +54,35 @@ void RenderToTextureApp::Prepare()
 
 	PrepareInstanceData();
 	PrepareTeapot();
+	PreparePlane();
 
 	CreatePipeline();
 }
 
 void RenderToTextureApp::Cleanup()
 {
-	for (const BufferObject& ubo : m_teapot.sceneUB)
-	{
-		DestroyBuffer(ubo);
-	}
-	m_teapot.sceneUB.clear();
-
 	for (const BufferObject& ubo : m_instanceUniforms)
 	{
 		DestroyBuffer(ubo);
 	}
 	m_instanceUniforms.clear();
 
-	DestroyBuffer(m_teapot.vertexBuffer);
-	DestroyBuffer(m_teapot.indexBuffer);
+	DestroyModelData(m_teapot);
+	DestroyModelData(m_plane);
 
-	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_teapot.descriptorSet.size()), m_teapot.descriptorSet.data());
-	m_teapot.descriptorSet.clear();
-
-	vkDestroyPipeline(m_device, m_teapot.pipeline, nullptr);
-	vkDestroyDescriptorSetLayout(m_device, m_layoutTeapot.descriptorSet, nullptr);
-	vkDestroyPipelineLayout(m_device, m_layoutTeapot.pipeline, nullptr);
+	for (const LayoutInfo& layout : { m_layoutTeapot, m_layoutPlane })
+	{
+		vkDestroyDescriptorSetLayout(m_device, layout.descriptorSet, nullptr);
+		vkDestroyPipelineLayout(m_device, layout.pipeline, nullptr);
+	}
 
 	DestroyImage(m_depthBuffer);
 	uint32_t count = uint32_t(m_framebuffers.size());
 	DestroyFramebuffers(count, m_framebuffers.data());
 	m_framebuffers.clear();
+
+	DestroyImage(m_colorTarget);
+	DestroyImage(m_depthTarget);
 
 	for (const VkFence& f : m_commandFences)
 	{
@@ -544,13 +541,8 @@ void RenderToTextureApp::PrepareTeapot()
 	// 定数バッファの準備
 	uint32_t imageCount = m_swapchain->GetImageCount();
 	VkMemoryPropertyFlags uboMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	m_teapot.sceneUB.resize(imageCount);
-
-	for (uint32_t i = 0; i < imageCount; ++i)
-	{
-		uint32_t buffersize = uint32_t(sizeof(ShaderParameters));
-		m_teapot.sceneUB[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
-	}
+	uint32_t bufferSize = uint32_t(sizeof(ShaderParameters));
+	m_teapot.sceneUB = CreateUniformBuffers(bufferSize, imageCount);
 
 	// teapot用のディスクリプタセット/レイアウトを準備
 	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
@@ -558,20 +550,23 @@ void RenderToTextureApp::PrepareTeapot()
 	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	descSetLayoutBindings[0].descriptorCount = 1;
 	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	descSetLayoutBindings[0].pImmutableSamplers = nullptr;
 	descSetLayoutBindings[1].binding = 1;
 	descSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	descSetLayoutBindings[1].descriptorCount = 1;
 	descSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	descSetLayoutBindings[1].pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
 	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descSetLayoutCI.pNext = nullptr;
+	descSetLayoutCI.flags = 0;
 	descSetLayoutCI.bindingCount = _countof(descSetLayoutBindings);
 	descSetLayoutCI.pBindings = descSetLayoutBindings;
 	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &m_layoutTeapot.descriptorSet);
 	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
 
-	// ディスクリプタセット
+	// teapot用のディスクリプタセット/レイアウトを準備
 	VkDescriptorSetAllocateInfo descriptorSetAI{};
 	descriptorSetAI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptorSetAI.pNext = nullptr;
@@ -579,6 +574,7 @@ void RenderToTextureApp::PrepareTeapot()
 	descriptorSetAI.descriptorSetCount = 1;
 	descriptorSetAI.pSetLayouts = &m_layoutTeapot.descriptorSet;
 
+	m_teapot.descriptorSet.reserve(imageCount);
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
 		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
@@ -588,9 +584,7 @@ void RenderToTextureApp::PrepareTeapot()
 		m_teapot.descriptorSet.push_back(descriptorSet);
 	}
 
-	// 確保したディスクリプタに書き込む.
-	// [0] View,Projの定数バッファ.
-	// [1] インスタンシング用のバッファ.
+	// ディスクリプタに書き込む
 	for (size_t i = 0; i < imageCount; ++i)
 	{
 		VkDescriptorBufferInfo uniformBufferInfo{};
@@ -625,6 +619,7 @@ void RenderToTextureApp::PrepareTeapot()
 		vkUpdateDescriptorSets(m_device, count, writeDescriptorSets.data(), 0, nullptr);
 	}
 
+	// パイプラインレイアウトを準備
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
 	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutCI.pNext = nullptr;
@@ -635,6 +630,150 @@ void RenderToTextureApp::PrepareTeapot()
 	pipelineLayoutCI.pPushConstantRanges = nullptr;
 	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_layoutTeapot.pipeline);
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
+}
+
+void RenderToTextureApp::PreparePlane()
+{
+	// UVは逆にする
+	VertexPT vertices[] = {
+		{glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec2(0.0f, 1.0f)},
+		{glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec2(0.0f, 0.0f)},
+		{glm::vec3(1.0f, 1.0f, 0.0f), glm::vec2(1.0f, 1.0f)},
+		{glm::vec3(1.0f, -1.0f, 0.0f), glm::vec2(1.0f, 0.0f)},
+	};
+	uint32_t indices[] = {0, 1, 2, 3};
+
+	// TODO:こっちにはステージ、ターゲットという違いは作らず、最初からvkMapMemoryで
+	// 本番にコピーする。なぜ？
+	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	VkBufferUsageFlags usageVB = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	VkBufferUsageFlags usageIB = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	uint32_t bufferSizeVB = uint32_t(sizeof(vertices));
+	uint32_t bufferSizeIB = uint32_t(sizeof(indices));
+	m_plane.vertexBuffer = CreateBuffer(bufferSizeVB, usageVB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, memoryProps);
+	m_plane.indexBuffer = CreateBuffer(bufferSizeIB, usageIB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, memoryProps);
+	m_plane.vertexCount = _countof(vertices);
+	m_plane.indexCount = _countof(indices);
+
+	// VBとIBにデータをコピー
+	void* p = nullptr;
+	vkMapMemory(m_device, m_plane.vertexBuffer.memory, 0, VK_WHOLE_SIZE, 0, &p);
+	memcpy(p, vertices, bufferSizeVB);
+	vkUnmapMemory(m_device, m_plane.vertexBuffer.memory);
+	vkMapMemory(m_device, m_plane.indexBuffer.memory, 0, VK_WHOLE_SIZE, 0, &p);
+	memcpy(p, indices, bufferSizeIB);
+	vkUnmapMemory(m_device, m_plane.indexBuffer.memory);
+
+	// 定数バッファの準備
+	uint32_t imageCount = m_swapchain->GetImageCount();
+	VkMemoryPropertyFlags uboMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	uint32_t bufferSize = uint32_t(sizeof(ShaderParameters));
+	m_plane.sceneUB = CreateUniformBuffers(bufferSize, imageCount);
+
+	// テクスチャを貼る板用のディスクリプタセット/レイアウトを準備
+	LayoutInfo layout{};
+	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
+	descSetLayoutBindings[0].binding = 0;
+	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descSetLayoutBindings[0].descriptorCount = 1;
+	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	descSetLayoutBindings[0].pImmutableSamplers = nullptr;
+	descSetLayoutBindings[1].binding = 1;
+	descSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descSetLayoutBindings[1].descriptorCount = 1;
+	descSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	descSetLayoutBindings[1].pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
+	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descSetLayoutCI.pNext = nullptr;
+	descSetLayoutCI.flags = 0;
+	descSetLayoutCI.bindingCount = _countof(descSetLayoutBindings);
+	descSetLayoutCI.pBindings = descSetLayoutBindings;
+	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &layout.descriptorSet);
+	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
+
+	VkDescriptorSetAllocateInfo descriptorSetAI{};
+	descriptorSetAI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptorSetAI.pNext = nullptr;
+	descriptorSetAI.descriptorPool = m_descriptorPool;
+	descriptorSetAI.descriptorSetCount = 1;
+	descriptorSetAI.pSetLayouts = &layout.descriptorSet;
+
+	m_plane.descriptorSet.reserve(imageCount);
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+		result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
+		ThrowIfFailed(result, "vkAllocateDescriptorSets Failed.");
+
+		m_plane.descriptorSet.push_back(descriptorSet);
+	}
+
+	VkSamplerCreateInfo samplerCI{};
+	samplerCI.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerCI.pNext = nullptr;
+	samplerCI.flags = 0;
+	samplerCI.magFilter = VK_FILTER_LINEAR;
+	samplerCI.minFilter = VK_FILTER_LINEAR;
+	samplerCI.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerCI.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerCI.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerCI.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	samplerCI.mipLodBias = 0.0f;
+	samplerCI.anisotropyEnable = VK_FALSE;
+	samplerCI.maxAnisotropy = 1.0f;
+	samplerCI.compareEnable = VK_FALSE;
+	samplerCI.compareOp = VK_COMPARE_OP_NEVER;
+	samplerCI.minLod = 0.0f;
+	samplerCI.maxLod = 0.0f;
+	samplerCI.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+	samplerCI.unnormalizedCoordinates = VK_FALSE;
+	result = vkCreateSampler(m_device, &samplerCI, nullptr, &m_sampler);
+	ThrowIfFailed(result, "vkCreateSampler Failed.");
+
+	// ディスクリプタに書き込む
+	for (size_t i = 0; i < imageCount; ++i)
+	{
+		VkDescriptorBufferInfo uboInfo{};
+		uboInfo.buffer = m_plane.sceneUB[i].buffer;
+		uboInfo.offset = 0;
+		uboInfo.range = VK_WHOLE_SIZE;
+
+		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
+			m_plane.descriptorSet[i],
+			0,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+		);
+		descSetSceneUB.pBufferInfo = &uboInfo;
+		vkUpdateDescriptorSets(m_device, 1, &descSetSceneUB, 0, nullptr);
+
+		VkDescriptorImageInfo texInfo{};
+		texInfo.sampler = m_sampler;
+		texInfo.imageView = m_colorTarget.view;
+		texInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		VkWriteDescriptorSet descSetTexture = book_util::PrepareWriteDescriptorSet(
+			m_plane.descriptorSet[i],
+			1,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+		);
+		descSetTexture.pImageInfo = &texInfo;
+		vkUpdateDescriptorSets(m_device, 1, &descSetTexture, 0, nullptr);
+	}
+
+	// パイプラインレイアウトを準備
+	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
+	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCI.pNext = nullptr;
+	pipelineLayoutCI.flags = 0;
+	pipelineLayoutCI.setLayoutCount = 1;
+	pipelineLayoutCI.pSetLayouts = &layout.descriptorSet;
+	pipelineLayoutCI.pushConstantRangeCount = 0;
+	pipelineLayoutCI.pPushConstantRanges = nullptr;
+	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &layout.pipeline);
+	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
+
+	m_layoutPlane = layout;
 }
 
 void RenderToTextureApp::PrepareInstanceData()
@@ -808,5 +947,23 @@ void RenderToTextureApp::CreatePipeline()
 	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
 
 	book_util::DestroyShaderModules(m_device, shaderStages);
+}
+
+void RenderToTextureApp::DestroyModelData(ModelData& model)
+{
+	for (const BufferObject& bufObj : { model.vertexBuffer, model.indexBuffer })
+	{
+		DestroyBuffer(bufObj);
+	}
+
+	for (const BufferObject& ubo : model.sceneUB)
+	{
+		DestroyBuffer(ubo);
+	}
+	model.sceneUB.clear();
+
+	vkDestroyPipeline(m_device, model.pipeline, nullptr);
+	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(model.descriptorSet.size()), model.descriptorSet.data());
+	model.descriptorSet.clear();
 }
 
