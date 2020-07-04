@@ -56,6 +56,8 @@ private:
 	LayoutInfo m_layoutTeapot;
 	LayoutInfo m_layoutPlane;
 
+	uint32_t m_frameIndex = 0;
+
 	int m_instanceCount = 200;
 	float m_cameraOffset = 0.0f;
 
@@ -83,6 +85,8 @@ private:
 	void PreparePlane();
 	void PrepareInstanceData();
 	void CreatePipeline();
+	void RenderToTexture(const VkCommandBuffer& command);
+	void RenderToMain(const VkCommandBuffer& command);
 	void DestroyModelData(ModelData& model);
 };
 

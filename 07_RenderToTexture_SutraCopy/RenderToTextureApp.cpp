@@ -108,89 +108,23 @@ void RenderToTextureApp::Render()
 		return;
 	}
 
-	std::array<VkClearValue, 2> clearValue = {
-		{
-			{0.85f, 0.5f, 0.5f, 0.0f}, // for Color
-			{1.0f, 0}, // for Depth
-		}
-	};
-
-	VkRect2D renderArea{};
-	renderArea.offset = VkOffset2D{ 0, 0 };
-	renderArea.extent = m_swapchain->GetSurfaceExtent();
-
-	VkRenderPass renderPass = GetRenderPass("main");
-	VkRenderPassBeginInfo rpBI{};
-	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	rpBI.pNext = nullptr;
-	rpBI.renderPass = renderPass;
-	rpBI.framebuffer = m_framebuffers[imageIndex];
-	rpBI.renderArea = renderArea;
-	rpBI.clearValueCount = uint32_t(clearValue.size());
-	rpBI.pClearValues = clearValue.data();
+	m_frameIndex = imageIndex;
+	VkCommandBuffer& command = m_commandBuffers[m_frameIndex];
+	const VkFence& fence = m_commandFences[m_frameIndex];
+	result = vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
+	ThrowIfFailed(result, "vkWaitForFences Failed.");
+	result = vkResetFences(m_device, 1, &fence);
+	ThrowIfFailed(result, "vkResetFences Failed.");
 
 	VkCommandBufferBeginInfo commandBI{};
 	commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	commandBI.pNext = nullptr;
 	commandBI.flags = 0;
 	commandBI.pInheritanceInfo = nullptr;
-
-	{
-		ShaderParameters shaderParam{};
-		shaderParam.view = glm::lookAtRH(
-			glm::vec3(3.0f, 5.0f, 10.0f - m_cameraOffset),
-			glm::vec3(3.0f, 2.0f, 0.0f - m_cameraOffset),
-			glm::vec3(0.0f, 1.0f, 0.0f)
-		);
-
-		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-		shaderParam.proj = glm::perspectiveRH(
-			glm::radians(45.0f),
-			float(extent.width) / float(extent.height),
-			0.1f,
-			1000.0f
-		);
-
-		const BufferObject& ubo = m_teapot.sceneUB[imageIndex];
-		void* p = nullptr;
-		result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
-		ThrowIfFailed(result, "vkMapMemory Failed.");
-		memcpy(p, &shaderParam, sizeof(ShaderParameters));
-		vkUnmapMemory(m_device, ubo.memory);
-	}
-
-	VkCommandBuffer& command = m_commandBuffers[imageIndex];
-	const VkFence& fence = m_commandFences[imageIndex];
-	result = vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
-	ThrowIfFailed(result, "vkWaitForFences Failed.");
-
 	result = vkBeginCommandBuffer(command, &commandBI);
 	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
-	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
 
-	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
-
-	VkOffset2D offset{};
-	offset.x = 0;
-	offset.y = 0;
-	VkRect2D scissor{};
-	scissor.offset = offset;
-	scissor.extent = extent;
-
-	vkCmdSetScissor(command, 0, 1, &scissor);
-	vkCmdSetViewport(command, 0, 1, &viewport);
-
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_teapot.pipeline);
-	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutTeapot.pipeline, 0, 1, &m_teapot.descriptorSet[imageIndex], 0, nullptr);
-	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	VkDeviceSize offsets[] = {0};
-	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
-	vkCmdDrawIndexed(command, m_teapot.indexCount, m_instanceCount, 0, 0, 0);
-
-	vkCmdEndRenderPass(command);
-	result = vkEndCommandBuffer(command);
-	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
+	RenderToMain(command);
 
 	// コマンドバッファ実行
 	VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -205,8 +139,8 @@ void RenderToTextureApp::Render()
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = &m_renderCompletedSem;
 
-	result = vkResetFences(m_device, 1, &fence);
-	ThrowIfFailed(result, "vkResetFences Failed.");
+	result = vkEndCommandBuffer(command);
+	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
 	result = vkQueueSubmit(m_deviceQueue, 1, &submitInfo, fence);
 	ThrowIfFailed(result, "vkQueueSubmit Failed.");
 
@@ -947,6 +881,82 @@ void RenderToTextureApp::CreatePipeline()
 	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
 
 	book_util::DestroyShaderModules(m_device, shaderStages);
+}
+
+void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
+{
+}
+
+void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
+{
+	std::array<VkClearValue, 2> clearValue = {
+		{
+			{0.85f, 0.5f, 0.5f, 0.0f}, // for Color
+			{1.0f, 0}, // for Depth
+		}
+	};
+
+	VkRect2D renderArea{};
+	renderArea.offset = VkOffset2D{ 0, 0 };
+	renderArea.extent = m_swapchain->GetSurfaceExtent();
+
+	VkRenderPass renderPass = GetRenderPass("main");
+	VkRenderPassBeginInfo rpBI{};
+	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	rpBI.pNext = nullptr;
+	rpBI.renderPass = renderPass;
+	rpBI.framebuffer = m_framebuffers[m_frameIndex];
+	rpBI.renderArea = renderArea;
+	rpBI.clearValueCount = uint32_t(clearValue.size());
+	rpBI.pClearValues = clearValue.data();
+
+	{
+		ShaderParameters shaderParam{};
+		shaderParam.view = glm::lookAtRH(
+			glm::vec3(3.0f, 5.0f, 10.0f - m_cameraOffset),
+			glm::vec3(3.0f, 2.0f, 0.0f - m_cameraOffset),
+			glm::vec3(0.0f, 1.0f, 0.0f)
+		);
+
+		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+		shaderParam.proj = glm::perspectiveRH(
+			glm::radians(45.0f),
+			float(extent.width) / float(extent.height),
+			0.1f,
+			1000.0f
+		);
+
+		const BufferObject& ubo = m_teapot.sceneUB[m_frameIndex];
+		void* p = nullptr;
+		VkResult result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+		ThrowIfFailed(result, "vkMapMemory Failed.");
+		memcpy(p, &shaderParam, sizeof(ShaderParameters));
+		vkUnmapMemory(m_device, ubo.memory);
+	}
+
+	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
+
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
+
+	VkOffset2D offset{};
+	offset.x = 0;
+	offset.y = 0;
+	VkRect2D scissor{};
+	scissor.offset = offset;
+	scissor.extent = extent;
+
+	vkCmdSetScissor(command, 0, 1, &scissor);
+	vkCmdSetViewport(command, 0, 1, &viewport);
+
+	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_teapot.pipeline);
+	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutTeapot.pipeline, 0, 1, &m_teapot.descriptorSet[m_frameIndex], 0, nullptr);
+	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
+	vkCmdDrawIndexed(command, m_teapot.indexCount, m_instanceCount, 0, 0, 0);
+
+	vkCmdEndRenderPass(command);
 }
 
 void RenderToTextureApp::DestroyModelData(ModelData& model)
