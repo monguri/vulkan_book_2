@@ -52,20 +52,8 @@ void RenderToTextureApp::Prepare()
 
 	PrepareRenderTexture();
 
-	PrepareTeapot();
 	PrepareInstanceData();
-	PrepareDescriptors();
-
-	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
-	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutCI.pNext = nullptr;
-	pipelineLayoutCI.flags = 0;
-	pipelineLayoutCI.setLayoutCount = 1;
-	pipelineLayoutCI.pSetLayouts = &m_descriptorSetLayout;
-	pipelineLayoutCI.pushConstantRangeCount = 0;
-	pipelineLayoutCI.pPushConstantRanges = nullptr;
-	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
-	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
+	PrepareTeapot();
 
 	CreatePipeline();
 }
@@ -563,52 +551,7 @@ void RenderToTextureApp::PrepareTeapot()
 		uint32_t buffersize = uint32_t(sizeof(ShaderParameters));
 		m_uniformBuffers[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
 	}
-}
 
-void RenderToTextureApp::PrepareInstanceData()
-{
-	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-
-	// インスタンシング用のユニフォームバッファを準備
-	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceDataMax;
-	m_instanceUniforms.resize(m_swapchain->GetImageCount());
-	for (BufferObject& ubo : m_instanceUniforms)
-	{
-		ubo = CreateBuffer(bufferSize, usage, memoryProps);
-	}
-
-	std::random_device rnd;
-	std::vector<InstanceData> data(InstanceDataMax);
-
-	for (uint32_t i = 0; i < InstanceDataMax; ++i)
-	{
-		const glm::vec3& axisX = glm::vec3(1.0f, 0.0f, 0.0f);
-		const glm::vec3& axisZ = glm::vec3(0.0f, 0.0f, 1.0f);
-		float k = float(rnd() % 360);
-		float x = (i % 6) * 3.0f;
-		float z = (i / 6) * -3.0f;
-
-		glm::mat4 mat(1.0f);
-		mat = glm::translate(mat, glm::vec3(x, 0.0f, z));
-		mat = glm::rotate(mat, k, axisX);
-		mat = glm::rotate(mat, k, axisZ);
-
-		data[i].world = mat;
-		data[i].color = colorSet[i % _countof(colorSet)];
-	}
-
-	for (const BufferObject& ubo : m_instanceUniforms)
-	{
-		void* p = nullptr;
-		vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
-		memcpy(p, data.data(), bufferSize);
-		vkUnmapMemory(m_device, ubo.memory);
-	}
-}
-
-void RenderToTextureApp::PrepareDescriptors()
-{
 	// ディスクリプタセットレイアウト
 	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
 	descSetLayoutBindings[0].binding = 0;
@@ -629,7 +572,6 @@ void RenderToTextureApp::PrepareDescriptors()
 	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
 
 	// ディスクリプタセット
-	uint32_t imageCount = m_swapchain->GetImageCount();
 	VkDescriptorSetAllocateInfo descriptorSetAI{};
 	descriptorSetAI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptorSetAI.pNext = nullptr;
@@ -681,6 +623,59 @@ void RenderToTextureApp::PrepareDescriptors()
 
 		uint32_t count = uint32_t(writeDescriptorSets.size());
 		vkUpdateDescriptorSets(m_device, count, writeDescriptorSets.data(), 0, nullptr);
+	}
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
+	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCI.pNext = nullptr;
+	pipelineLayoutCI.flags = 0;
+	pipelineLayoutCI.setLayoutCount = 1;
+	pipelineLayoutCI.pSetLayouts = &m_descriptorSetLayout;
+	pipelineLayoutCI.pushConstantRangeCount = 0;
+	pipelineLayoutCI.pPushConstantRanges = nullptr;
+	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
+	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
+}
+
+void RenderToTextureApp::PrepareInstanceData()
+{
+	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+	// インスタンシング用のユニフォームバッファを準備
+	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceDataMax;
+	m_instanceUniforms.resize(m_swapchain->GetImageCount());
+	for (BufferObject& ubo : m_instanceUniforms)
+	{
+		ubo = CreateBuffer(bufferSize, usage, memoryProps);
+	}
+
+	std::random_device rnd;
+	std::vector<InstanceData> data(InstanceDataMax);
+
+	for (uint32_t i = 0; i < InstanceDataMax; ++i)
+	{
+		const glm::vec3& axisX = glm::vec3(1.0f, 0.0f, 0.0f);
+		const glm::vec3& axisZ = glm::vec3(0.0f, 0.0f, 1.0f);
+		float k = float(rnd() % 360);
+		float x = (i % 6) * 3.0f;
+		float z = (i / 6) * -3.0f;
+
+		glm::mat4 mat(1.0f);
+		mat = glm::translate(mat, glm::vec3(x, 0.0f, z));
+		mat = glm::rotate(mat, k, axisX);
+		mat = glm::rotate(mat, k, axisZ);
+
+		data[i].world = mat;
+		data[i].color = colorSet[i % _countof(colorSet)];
+	}
+
+	for (const BufferObject& ubo : m_instanceUniforms)
+	{
+		void* p = nullptr;
+		vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+		memcpy(p, data.data(), bufferSize);
+		vkUnmapMemory(m_device, ubo.memory);
 	}
 }
 

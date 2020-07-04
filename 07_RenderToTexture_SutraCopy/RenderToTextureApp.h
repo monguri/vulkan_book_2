@@ -64,7 +64,6 @@ private:
 	void PrepareRenderTexture();
 	void PrepareTeapot();
 	void PrepareInstanceData();
-	void PrepareDescriptors();
 	void CreatePipeline();
 };
 
