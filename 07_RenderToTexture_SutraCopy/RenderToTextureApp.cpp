@@ -56,7 +56,8 @@ void RenderToTextureApp::Prepare()
 	PrepareTeapot();
 	PreparePlane();
 
-	CreatePipeline();
+	CreatePipelineTeapot();
+	CreatePipelinePlane();
 }
 
 void RenderToTextureApp::Cleanup()
@@ -780,8 +781,9 @@ void RenderToTextureApp::PrepareInstanceData()
 	}
 }
 
-void RenderToTextureApp::CreatePipeline()
+void RenderToTextureApp::CreatePipelineTeapot()
 {
+	// Teapot用パイプライン
 	uint32_t stride = uint32_t(sizeof(TeapotModel::Vertex));
 
 	VkVertexInputBindingDescription vibDesc{};
@@ -808,7 +810,7 @@ void RenderToTextureApp::CreatePipeline()
 	pipelineVisCI.vertexAttributeDescriptionCount = uint32_t(inputAttribs.size());
 	pipelineVisCI.pVertexAttributeDescriptions = inputAttribs.data();
 
-	const VkPipelineColorBlendAttachmentState& blendAttachmentState = book_util::GetOpaqueColorBlendAttachmentState();
+	const VkPipelineColorBlendAttachmentState& colorBlendAttachmentState = book_util::GetOpaqueColorBlendAttachmentState();
 
 	VkPipelineColorBlendStateCreateInfo colorBlendStateCI{};
 	colorBlendStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -817,7 +819,7 @@ void RenderToTextureApp::CreatePipeline()
 	colorBlendStateCI.logicOpEnable = VK_FALSE;
 	colorBlendStateCI.logicOp = VK_LOGIC_OP_CLEAR;
 	colorBlendStateCI.attachmentCount = 1;
-	colorBlendStateCI.pAttachments = &blendAttachmentState;
+	colorBlendStateCI.pAttachments = &colorBlendAttachmentState;
 	colorBlendStateCI.blendConstants[0] = 0.0f;
 	colorBlendStateCI.blendConstants[1] = 0.0f;
 	colorBlendStateCI.blendConstants[2] = 0.0f;
@@ -828,6 +830,131 @@ void RenderToTextureApp::CreatePipeline()
 	inputAssemblyCI.pNext = nullptr;
 	inputAssemblyCI.flags = 0;
 	inputAssemblyCI.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssemblyCI.primitiveRestartEnable = VK_FALSE;
+
+	VkPipelineMultisampleStateCreateInfo multisampleCI{};
+	multisampleCI.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampleCI.pNext = nullptr;
+	multisampleCI.flags = 0;
+	multisampleCI.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleCI.sampleShadingEnable = VK_FALSE;
+	multisampleCI.minSampleShading = 0.0f;
+	multisampleCI.pSampleMask = nullptr;
+	multisampleCI.alphaToCoverageEnable = VK_FALSE;
+	multisampleCI.alphaToOneEnable = VK_FALSE;
+	
+	VkViewport viewport{};
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = TextureWidth;
+	viewport.height = TextureHeight;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 0.0f;
+
+	VkOffset2D offset{};
+	offset.x = 0;
+	offset.y = 0;
+	VkRect2D scissor{};
+	scissor.offset = offset;
+	scissor.extent.width = TextureWidth;
+	scissor.extent.height = TextureHeight;
+
+	VkPipelineViewportStateCreateInfo viewportCI{};
+	viewportCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportCI.pNext = nullptr;
+	viewportCI.flags = 0;
+	viewportCI.viewportCount = 1;
+	viewportCI.pViewports = &viewport;
+	viewportCI.scissorCount = 1;
+	viewportCI.pScissors = &scissor;
+
+	// シェーダのロード
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStages
+	{
+		book_util::LoadShader(m_device, "shaderVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
+		book_util::LoadShader(m_device, "shaderFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+	};
+
+	const VkPipelineRasterizationStateCreateInfo& rasterizerState = book_util::GetDefaultRasterizerState();
+
+	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
+
+	// パイプライン構築
+	VkRenderPass renderPass = GetRenderPass("main");
+	VkGraphicsPipelineCreateInfo pipelineCI{};
+	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineCI.pNext = nullptr;
+	pipelineCI.stageCount = uint32_t(shaderStages.size());
+	pipelineCI.pStages = shaderStages.data();
+	pipelineCI.pVertexInputState = &pipelineVisCI;
+	pipelineCI.pInputAssemblyState = &inputAssemblyCI;
+	pipelineCI.pTessellationState = nullptr;
+	pipelineCI.pViewportState = &viewportCI;
+	pipelineCI.pRasterizationState = &rasterizerState;
+	pipelineCI.pMultisampleState = &multisampleCI;
+	pipelineCI.pDepthStencilState = &dsState;
+	pipelineCI.pColorBlendState = &colorBlendStateCI;
+	pipelineCI.pDynamicState = nullptr; // DynamicState不要
+	pipelineCI.layout = m_layoutTeapot.pipeline;
+	pipelineCI.renderPass = renderPass;
+	pipelineCI.subpass = 0;
+	pipelineCI.basePipelineHandle = VK_NULL_HANDLE;
+	pipelineCI.basePipelineIndex = 0;
+	VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_teapot.pipeline);
+	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
+
+	book_util::DestroyShaderModules(m_device, shaderStages);
+}
+
+void RenderToTextureApp::CreatePipelinePlane()
+{
+	// Plane用パイプライン
+	uint32_t stride = uint32_t(sizeof(VertexPT));
+
+	VkVertexInputBindingDescription vibDesc{};
+	vibDesc.binding = 0;
+	vibDesc.stride = stride;
+	vibDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	std::array<VkVertexInputAttributeDescription, 2> inputAttribs{};
+	inputAttribs[0].location = 0;
+	inputAttribs[0].binding = 0;
+	inputAttribs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	inputAttribs[0].offset = offsetof(VertexPT, position);
+	inputAttribs[1].location = 1;
+	inputAttribs[1].binding = 0;
+	inputAttribs[1].format = VK_FORMAT_R32G32_SFLOAT;
+	inputAttribs[1].offset = offsetof(VertexPT, uv);
+
+	VkPipelineVertexInputStateCreateInfo pipelineVisCI{};
+	pipelineVisCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	pipelineVisCI.pNext = nullptr;
+	pipelineVisCI.flags = 0;
+	pipelineVisCI.vertexBindingDescriptionCount = 1;
+	pipelineVisCI.pVertexBindingDescriptions = &vibDesc;
+	pipelineVisCI.vertexAttributeDescriptionCount = uint32_t(inputAttribs.size());
+	pipelineVisCI.pVertexAttributeDescriptions = inputAttribs.data();
+
+	const VkPipelineColorBlendAttachmentState& colorBlendAttachmentState = book_util::GetOpaqueColorBlendAttachmentState();
+
+	VkPipelineColorBlendStateCreateInfo colorBlendStateCI{};
+	colorBlendStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendStateCI.pNext = nullptr;
+	colorBlendStateCI.flags = 0;
+	colorBlendStateCI.logicOpEnable = VK_FALSE;
+	colorBlendStateCI.logicOp = VK_LOGIC_OP_CLEAR;
+	colorBlendStateCI.attachmentCount = 1;
+	colorBlendStateCI.pAttachments = &colorBlendAttachmentState;
+	colorBlendStateCI.blendConstants[0] = 0.0f;
+	colorBlendStateCI.blendConstants[1] = 0.0f;
+	colorBlendStateCI.blendConstants[2] = 0.0f;
+	colorBlendStateCI.blendConstants[3] = 0.0f;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCI{};
+	inputAssemblyCI.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssemblyCI.pNext = nullptr;
+	inputAssemblyCI.flags = 0;
+	inputAssemblyCI.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; // こちらはSTRIP インデックスバッファが0,1,2,3
 	inputAssemblyCI.primitiveRestartEnable = VK_FALSE;
 
 	VkPipelineMultisampleStateCreateInfo multisampleCI{};
@@ -864,15 +991,10 @@ void RenderToTextureApp::CreatePipeline()
 	// シェーダのロード
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages
 	{
-		book_util::LoadShader(m_device, "shaderVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
-		book_util::LoadShader(m_device, "shaderFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+		book_util::LoadShader(m_device, "planeVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
+		book_util::LoadShader(m_device, "planerFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
 	};
 
-	const VkPipelineRasterizationStateCreateInfo& rasterizerState = book_util::GetDefaultRasterizerState();
-
-	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
-
-	// DynamicState
 	std::vector<VkDynamicState> dynamicStates{
 		VK_DYNAMIC_STATE_SCISSOR,
 		VK_DYNAMIC_STATE_VIEWPORT
@@ -883,6 +1005,11 @@ void RenderToTextureApp::CreatePipeline()
 	pipelineDynamicStateCI.flags = 0;
 	pipelineDynamicStateCI.dynamicStateCount = uint32_t(dynamicStates.size());
 	pipelineDynamicStateCI.pDynamicStates = dynamicStates.data();
+
+	const VkPipelineRasterizationStateCreateInfo& rasterizerState = book_util::GetDefaultRasterizerState();
+
+	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
+
 
 	// パイプライン構築
 	VkRenderPass renderPass = GetRenderPass("main");
@@ -900,12 +1027,12 @@ void RenderToTextureApp::CreatePipeline()
 	pipelineCI.pDepthStencilState = &dsState;
 	pipelineCI.pColorBlendState = &colorBlendStateCI;
 	pipelineCI.pDynamicState = &pipelineDynamicStateCI;
-	pipelineCI.layout = m_layoutTeapot.pipeline;
+	pipelineCI.layout = m_layoutPlane.pipeline;
 	pipelineCI.renderPass = renderPass;
 	pipelineCI.subpass = 0;
 	pipelineCI.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineCI.basePipelineIndex = 0;
-	VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_teapot.pipeline);
+	VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_plane.pipeline);
 	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
 
 	book_util::DestroyShaderModules(m_device, shaderStages);
@@ -913,6 +1040,63 @@ void RenderToTextureApp::CreatePipeline()
 
 void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
 {
+	std::array<VkClearValue, 2> clearValue = {
+		{
+			{0.25f, 0.25f, 0.25f, 0.0f}, // for Color
+			{1.0f, 0}, // for Depth
+		}
+	};
+
+	VkRect2D renderArea{};
+	renderArea.offset = VkOffset2D{ 0, 0 };
+	renderArea.extent.width = TextureWidth;
+	renderArea.extent.height = TextureHeight;
+
+	VkRenderPass renderPass = GetRenderPass("render_target");
+	VkRenderPassBeginInfo rpBI{};
+	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	rpBI.pNext = nullptr;
+	rpBI.renderPass = renderPass;
+	rpBI.framebuffer = m_renderTextureFB;
+	rpBI.renderArea = renderArea;
+	rpBI.clearValueCount = uint32_t(clearValue.size());
+	rpBI.pClearValues = clearValue.data();
+
+	{
+		ShaderParameters shaderParams{};
+		shaderParams.world = glm::mat4(1.0f);
+		shaderParams.view = glm::lookAtRH(
+			glm::vec3(0.0f, 2.0f, 5.0f),
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 1.0f, 0.0f)
+		);
+
+		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+		shaderParams.proj = glm::perspectiveRH(
+			glm::radians(45.0f),
+			float(extent.width) / float(extent.height),
+			0.1f,
+			1000.0f
+		);
+
+		const BufferObject& ubo = m_teapot.sceneUB[m_frameIndex];
+		void* p = nullptr;
+		VkResult result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+		ThrowIfFailed(result, "vkMapMemory Failed.");
+		memcpy(p, &shaderParams, sizeof(ShaderParameters));
+		vkUnmapMemory(m_device, ubo.memory);
+	}
+
+	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_teapot.pipeline);
+	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutTeapot.pipeline, 0, 1, &m_teapot.descriptorSet[m_frameIndex], 0, nullptr);
+	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
+	vkCmdDrawIndexed(command, m_teapot.indexCount, 1, 0, 0, 0);
+
+	vkCmdEndRenderPass(command);
 }
 
 void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
@@ -954,7 +1138,7 @@ void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
 			1000.0f
 		);
 
-		const BufferObject& ubo = m_teapot.sceneUB[m_frameIndex];
+		const BufferObject& ubo = m_plane.sceneUB[m_frameIndex];
 		void* p = nullptr;
 		VkResult result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
 		ThrowIfFailed(result, "vkMapMemory Failed.");
@@ -963,6 +1147,8 @@ void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
 	}
 
 	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_plane.pipeline);
 
 	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
 	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
@@ -977,12 +1163,11 @@ void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
 	vkCmdSetScissor(command, 0, 1, &scissor);
 	vkCmdSetViewport(command, 0, 1, &viewport);
 
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_teapot.pipeline);
-	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutTeapot.pipeline, 0, 1, &m_teapot.descriptorSet[m_frameIndex], 0, nullptr);
-	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutPlane.pipeline, 0, 1, &m_plane.descriptorSet[m_frameIndex], 0, nullptr);
+	vkCmdBindIndexBuffer(command, m_plane.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 	VkDeviceSize offsets[] = {0};
-	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
-	vkCmdDrawIndexed(command, m_teapot.indexCount, m_instanceCount, 0, 0, 0);
+	vkCmdBindVertexBuffers(command, 0, 1, &m_plane.vertexBuffer.buffer, offsets);
+	vkCmdDrawIndexed(command, m_plane.indexCount, m_instanceCount, 0, 0, 0);
 
 	vkCmdEndRenderPass(command);
 }

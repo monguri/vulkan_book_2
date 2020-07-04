@@ -63,6 +63,7 @@ private:
 
 	struct ShaderParameters
 	{
+		glm::mat4 world;
 		glm::mat4 view;
 		glm::mat4 proj;
 	};
@@ -84,7 +85,8 @@ private:
 	void PrepareTeapot();
 	void PreparePlane();
 	void PrepareInstanceData();
-	void CreatePipeline();
+	void CreatePipelineTeapot();
+	void CreatePipelinePlane();
 	void RenderToTexture(const VkCommandBuffer& command);
 	void RenderToMain(const VkCommandBuffer& command);
 	void DestroyModelData(ModelData& model);
