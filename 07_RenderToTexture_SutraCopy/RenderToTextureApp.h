@@ -16,10 +16,6 @@ public:
 		TextureWidth = 512,
 		TextureHeight = 512,
 	};
-	enum
-	{
-		InstanceDataMax = 500
-	};
 
 private:
 	ImageObject m_depthBuffer;
@@ -67,13 +63,6 @@ private:
 		glm::mat4 view;
 		glm::mat4 proj;
 	};
-	struct InstanceData
-	{
-		glm::mat4 world;
-		glm::vec4 color;
-	};
-
-	std::vector<BufferObject> m_instanceUniforms;
 
 	ImageObject m_colorTarget, m_depthTarget;
 	VkFramebuffer m_renderTextureFB = VK_NULL_HANDLE;
@@ -84,7 +73,6 @@ private:
 	void PrepareRenderTexture();
 	void PrepareTeapot();
 	void PreparePlane();
-	void PrepareInstanceData();
 	void CreatePipelineTeapot();
 	void CreatePipelinePlane();
 	void RenderToTexture(const VkCommandBuffer& command);

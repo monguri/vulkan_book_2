@@ -52,7 +52,6 @@ void RenderToTextureApp::Prepare()
 
 	PrepareRenderTexture();
 
-	PrepareInstanceData();
 	PrepareTeapot();
 	PreparePlane();
 
@@ -62,12 +61,6 @@ void RenderToTextureApp::Prepare()
 
 void RenderToTextureApp::Cleanup()
 {
-	for (const BufferObject& ubo : m_instanceUniforms)
-	{
-		DestroyBuffer(ubo);
-	}
-	m_instanceUniforms.clear();
-
 	DestroyModelData(m_teapot);
 	DestroyModelData(m_plane);
 
@@ -508,6 +501,7 @@ void RenderToTextureApp::PrepareTeapot()
 	m_teapot.sceneUB = CreateUniformBuffers(bufferSize, imageCount);
 
 	// teapot用のディスクリプタセット/レイアウトを準備
+	LayoutInfo layout{};
 	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
 	descSetLayoutBindings[0].binding = 0;
 	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -526,7 +520,7 @@ void RenderToTextureApp::PrepareTeapot()
 	descSetLayoutCI.flags = 0;
 	descSetLayoutCI.bindingCount = _countof(descSetLayoutBindings);
 	descSetLayoutCI.pBindings = descSetLayoutBindings;
-	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &m_layoutTeapot.descriptorSet);
+	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &layout.descriptorSet);
 	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
 
 	// teapot用のディスクリプタセット/レイアウトを準備
@@ -535,7 +529,7 @@ void RenderToTextureApp::PrepareTeapot()
 	descriptorSetAI.pNext = nullptr;
 	descriptorSetAI.descriptorPool = m_descriptorPool;
 	descriptorSetAI.descriptorSetCount = 1;
-	descriptorSetAI.pSetLayouts = &m_layoutTeapot.descriptorSet;
+	descriptorSetAI.pSetLayouts = &layout.descriptorSet;
 
 	m_teapot.descriptorSet.reserve(imageCount);
 	for (uint32_t i = 0; i < imageCount; ++i)
@@ -555,31 +549,13 @@ void RenderToTextureApp::PrepareTeapot()
 		uniformBufferInfo.offset = 0;
 		uniformBufferInfo.range = VK_WHOLE_SIZE;
 
-		VkDescriptorBufferInfo instanceBufferInfo{};
-		instanceBufferInfo.buffer = m_instanceUniforms[i].buffer;
-		instanceBufferInfo.offset = 0;
-		instanceBufferInfo.range = VK_WHOLE_SIZE;
-
 		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
 			m_teapot.descriptorSet[i],
 			0,
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
 		);
 		descSetSceneUB.pBufferInfo = &uniformBufferInfo;
-
-		VkWriteDescriptorSet descSetInstUB = book_util::PrepareWriteDescriptorSet(
-			m_teapot.descriptorSet[i],
-			1,
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-		);
-		descSetInstUB.pBufferInfo = &instanceBufferInfo;
-
-		std::array<VkWriteDescriptorSet, 2> writeDescriptorSets{
-			descSetSceneUB, descSetInstUB
-		};
-
-		uint32_t count = uint32_t(writeDescriptorSets.size());
-		vkUpdateDescriptorSets(m_device, count, writeDescriptorSets.data(), 0, nullptr);
+		vkUpdateDescriptorSets(m_device, 1, &descSetSceneUB, 0, nullptr);
 	}
 
 	// パイプラインレイアウトを準備
@@ -588,11 +564,13 @@ void RenderToTextureApp::PrepareTeapot()
 	pipelineLayoutCI.pNext = nullptr;
 	pipelineLayoutCI.flags = 0;
 	pipelineLayoutCI.setLayoutCount = 1;
-	pipelineLayoutCI.pSetLayouts = &m_layoutTeapot.descriptorSet;
+	pipelineLayoutCI.pSetLayouts = &layout.descriptorSet;
 	pipelineLayoutCI.pushConstantRangeCount = 0;
 	pipelineLayoutCI.pPushConstantRanges = nullptr;
-	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_layoutTeapot.pipeline);
+	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &layout.pipeline);
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
+
+	m_layoutTeapot = layout;
 }
 
 void RenderToTextureApp::PreparePlane()
@@ -737,48 +715,6 @@ void RenderToTextureApp::PreparePlane()
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 
 	m_layoutPlane = layout;
-}
-
-void RenderToTextureApp::PrepareInstanceData()
-{
-	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-
-	// インスタンシング用のユニフォームバッファを準備
-	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceDataMax;
-	m_instanceUniforms.resize(m_swapchain->GetImageCount());
-	for (BufferObject& ubo : m_instanceUniforms)
-	{
-		ubo = CreateBuffer(bufferSize, usage, memoryProps);
-	}
-
-	std::random_device rnd;
-	std::vector<InstanceData> data(InstanceDataMax);
-
-	for (uint32_t i = 0; i < InstanceDataMax; ++i)
-	{
-		const glm::vec3& axisX = glm::vec3(1.0f, 0.0f, 0.0f);
-		const glm::vec3& axisZ = glm::vec3(0.0f, 0.0f, 1.0f);
-		float k = float(rnd() % 360);
-		float x = (i % 6) * 3.0f;
-		float z = (i / 6) * -3.0f;
-
-		glm::mat4 mat(1.0f);
-		mat = glm::translate(mat, glm::vec3(x, 0.0f, z));
-		mat = glm::rotate(mat, k, axisX);
-		mat = glm::rotate(mat, k, axisZ);
-
-		data[i].world = mat;
-		data[i].color = colorSet[i % _countof(colorSet)];
-	}
-
-	for (const BufferObject& ubo : m_instanceUniforms)
-	{
-		void* p = nullptr;
-		vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
-		memcpy(p, data.data(), bufferSize);
-		vkUnmapMemory(m_device, ubo.memory);
-	}
 }
 
 void RenderToTextureApp::CreatePipelineTeapot()
