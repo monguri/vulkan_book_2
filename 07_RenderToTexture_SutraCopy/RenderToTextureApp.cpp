@@ -124,6 +124,34 @@ void RenderToTextureApp::Render()
 	result = vkBeginCommandBuffer(command, &commandBI);
 	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
 
+	RenderToTexture(command);
+
+	VkImageMemoryBarrier imageBarrier{};
+	imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	imageBarrier.pNext = nullptr;
+	imageBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	imageBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	imageBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	imageBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	imageBarrier.image = m_colorTarget.image;
+	imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageBarrier.subresourceRange.baseMipLevel = 0;
+	imageBarrier.subresourceRange.levelCount = 1;
+	imageBarrier.subresourceRange.baseArrayLayer = 0;
+	imageBarrier.subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(
+		command,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		VK_DEPENDENCY_BY_REGION_BIT,
+		0, nullptr, // memoryBarrier
+		0, nullptr, // bufferMemoryBarrier
+		1, &imageBarrier // imageMemoryBarrier
+	);
+
 	RenderToMain(command);
 
 	// コマンドバッファ実行
