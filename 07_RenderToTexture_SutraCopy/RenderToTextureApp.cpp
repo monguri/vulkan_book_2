@@ -7,13 +7,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-static glm::vec4 colorSet[] = {
-	glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-	glm::vec4(1.0f, 0.65f, 1.0f, 1.0f),
-	glm::vec4(0.1f, 0.5f, 1.0f, 1.0f),
-	glm::vec4(0.6f, 1.0f, 0.8f, 1.0f),
-};
-
 void RenderToTextureApp::Prepare()
 {
 	CreateRenderPass();
@@ -807,8 +800,8 @@ void RenderToTextureApp::CreatePipelineTeapot()
 	// シェーダのロード
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages
 	{
-		book_util::LoadShader(m_device, "shaderVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
-		book_util::LoadShader(m_device, "shaderFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+		book_util::LoadShader(m_device, "modelVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
+		book_util::LoadShader(m_device, "modelFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
 	};
 
 	const VkPipelineRasterizationStateCreateInfo& rasterizerState = book_util::GetDefaultRasterizerState();
