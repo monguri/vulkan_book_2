@@ -94,6 +94,8 @@ public:
 	VkCommandBuffer CreateCommandBuffer();
 	void FinishCommandBuffer(VkCommandBuffer command);
 
+	std::vector<BufferObject> CreateUniformBuffers(uint32_t bufferSize, uint32_t imageCount);
+
 private:
 	void CreateInstance();
 	void SelectGraphicsQueue();

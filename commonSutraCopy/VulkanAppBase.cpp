@@ -553,6 +553,19 @@ void VulkanAppBase::FinishCommandBuffer(VkCommandBuffer command)
 	vkDestroyFence(m_device, fence, nullptr);
 }
 
+std::vector<VulkanAppBase::BufferObject> VulkanAppBase::CreateUniformBuffers(uint32_t bufferSize, uint32_t imageCount)
+{
+	std::vector<BufferObject> buffers(imageCount);
+
+	for (BufferObject& b : buffers)
+	{
+		VkMemoryPropertyFlags props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		b = CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, props);
+	}
+
+	return buffers;
+}
+
 // TODO:Ç±ÇÃèàóùÇÕâΩÇÃÇΩÇﬂÇ…Ç†ÇÈÇ©óùâÇ≈Ç´ÇƒÇ»Ç¢
 void VulkanAppBase::MsgLoopMinimizedWindow()
 {
