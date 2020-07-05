@@ -661,7 +661,7 @@ void RenderToTextureApp::CreatePipelineTeapot()
 	viewport.width = TextureWidth;
 	viewport.height = TextureHeight;
 	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
 
 	VkOffset2D offset{};
 	offset.x = 0;
