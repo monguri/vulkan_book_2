@@ -7,6 +7,9 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+using namespace std;
+using namespace glm;
+
 void RenderToTextureApp::Prepare()
 {
 	CreateRenderPass();
@@ -692,7 +695,7 @@ void RenderToTextureApp::CreatePipelineTeapot()
 	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
 
 	// パイプライン構築
-	VkRenderPass renderPass = GetRenderPass("main");
+	VkRenderPass renderPass = GetRenderPass("render_target");
 	VkGraphicsPipelineCreateInfo pipelineCI{};
 	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineCI.pNext = nullptr;
@@ -784,11 +787,9 @@ void RenderToTextureApp::CreatePipelinePlane()
 
 	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
 
-	VkOffset2D offset{};
-	offset.x = 0;
-	offset.y = 0;
 	VkRect2D scissor{};
-	scissor.offset = offset;
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
 	scissor.extent = extent;
 
 	VkPipelineViewportStateCreateInfo viewportCI{};
@@ -821,7 +822,6 @@ void RenderToTextureApp::CreatePipelinePlane()
 	const VkPipelineRasterizationStateCreateInfo& rasterizerState = book_util::GetDefaultRasterizerState();
 
 	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
-
 
 	// パイプライン構築
 	VkRenderPass renderPass = GetRenderPass("main");
@@ -967,7 +967,7 @@ void RenderToTextureApp::PrepareRenderTexture()
 	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
 }
 
-void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
+void RenderToTextureApp::RenderToTexture(VkCommandBuffer command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
@@ -977,7 +977,8 @@ void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
 	};
 
 	VkRect2D renderArea{};
-	renderArea.offset = VkOffset2D{ 0, 0 };
+	renderArea.offset.x = 0;
+	renderArea.offset.y = 0;
 	renderArea.extent.width = TextureWidth;
 	renderArea.extent.height = TextureHeight;
 
@@ -1028,7 +1029,7 @@ void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
 	vkCmdEndRenderPass(command);
 }
 
-void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
+void RenderToTextureApp::RenderToMain(VkCommandBuffer command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
@@ -1038,7 +1039,8 @@ void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
 	};
 
 	VkRect2D renderArea{};
-	renderArea.offset = VkOffset2D{ 0, 0 };
+	renderArea.offset.x = 0;
+	renderArea.offset.y = 0;
 	renderArea.extent = m_swapchain->GetSurfaceExtent();
 
 	VkRenderPass renderPass = GetRenderPass("main");

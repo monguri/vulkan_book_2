@@ -75,8 +75,8 @@ private:
 	void PreparePlane();
 	void CreatePipelineTeapot();
 	void CreatePipelinePlane();
-	void RenderToTexture(const VkCommandBuffer& command);
-	void RenderToMain(const VkCommandBuffer& command);
+	void RenderToTexture(VkCommandBuffer command);
+	void RenderToMain(VkCommandBuffer command);
 	void DestroyModelData(ModelData& model);
 };
 
