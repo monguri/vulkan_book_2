@@ -1055,9 +1055,10 @@ void RenderToTextureApp::RenderToMain(VkCommandBuffer command)
 
 	{
 		ShaderParameters shaderParam{};
+		shaderParam.world = glm::rotate(glm::mat4(1.0f), glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		shaderParam.view = glm::lookAtRH(
-			glm::vec3(3.0f, 5.0f, 10.0f - m_cameraOffset),
-			glm::vec3(3.0f, 2.0f, 0.0f - m_cameraOffset),
+			glm::vec3(0.0f, 0.0f, 3.0f),
+			glm::vec3(0.0f, 0.0f, 0.0f),
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
 
@@ -1098,7 +1099,7 @@ void RenderToTextureApp::RenderToMain(VkCommandBuffer command)
 	vkCmdBindIndexBuffer(command, m_plane.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 	VkDeviceSize offsets[] = {0};
 	vkCmdBindVertexBuffers(command, 0, 1, &m_plane.vertexBuffer.buffer, offsets);
-	vkCmdDrawIndexed(command, m_plane.indexCount, m_instanceCount, 0, 0, 0);
+	vkCmdDrawIndexed(command, m_plane.indexCount, 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(command);
 }

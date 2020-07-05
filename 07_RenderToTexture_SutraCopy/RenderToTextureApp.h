@@ -54,9 +54,6 @@ private:
 
 	uint32_t m_frameIndex = 0;
 
-	int m_instanceCount = 200;
-	float m_cameraOffset = 0.0f;
-
 	struct ShaderParameters
 	{
 		glm::mat4 world;
