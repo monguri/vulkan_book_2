@@ -7,9 +7,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-using namespace std;
-using namespace glm;
-
 void RenderToTextureApp::Prepare()
 {
 	CreateRenderPass();
@@ -967,7 +964,7 @@ void RenderToTextureApp::PrepareRenderTexture()
 	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
 }
 
-void RenderToTextureApp::RenderToTexture(VkCommandBuffer command)
+void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
@@ -1029,7 +1026,7 @@ void RenderToTextureApp::RenderToTexture(VkCommandBuffer command)
 	vkCmdEndRenderPass(command);
 }
 
-void RenderToTextureApp::RenderToMain(VkCommandBuffer command)
+void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
