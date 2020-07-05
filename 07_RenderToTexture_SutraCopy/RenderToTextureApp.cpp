@@ -162,25 +162,6 @@ void RenderToTextureApp::Render()
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
 }
 
-bool RenderToTextureApp::OnSizeChanged(uint32_t width, uint32_t height)
-{
-	bool result = VulkanAppBase::OnSizeChanged(width, height);
-	if (result)
-	{
-		DestroyImage(m_depthBuffer);
-		DestroyFramebuffers(uint32_t(m_framebuffers.size()), m_framebuffers.data());
-
-		// デプスバッファを再生成
-		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-		m_depthBuffer = CreateImage(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-
-		// フレームバッファを準備
-		PrepareFramebuffers();
-	}
-
-	return result;
-}
-
 void RenderToTextureApp::CreateRenderPass()
 {
 	// 2個のレンダーパスで同じようなコードを書くが、本でソース共通化してないので共通化しない
@@ -328,121 +309,23 @@ void RenderToTextureApp::PrepareFramebuffers()
 	}
 }
 
-void RenderToTextureApp::PrepareRenderTexture()
+bool RenderToTextureApp::OnSizeChanged(uint32_t width, uint32_t height)
 {
-	// 描画先テクスチャの準備
-	ImageObject colorTarget;
-	VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
-	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
-
+	bool result = VulkanAppBase::OnSizeChanged(width, height);
+	if (result)
 	{
-		VkImageCreateInfo imageCI{};
-		imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		imageCI.pNext = nullptr;
-		imageCI.flags = 0;
-		imageCI.imageType = VK_IMAGE_TYPE_2D;
-		imageCI.format = colorFormat;
-		imageCI.extent.width = TextureWidth;
-		imageCI.extent.height = TextureHeight;
-		imageCI.extent.depth = 1;
-		imageCI.mipLevels = 1;
-		imageCI.arrayLayers = 1;
-		imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
-		imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageCI.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageCI.queueFamilyIndexCount = 0;
-		imageCI.pQueueFamilyIndices = nullptr;
-		imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		VkResult result = vkCreateImage(m_device, &imageCI, nullptr, &colorTarget.image);
-		ThrowIfFailed(result, "vkCreateImage Failed.");
+		DestroyImage(m_depthBuffer);
+		DestroyFramebuffers(uint32_t(m_framebuffers.size()), m_framebuffers.data());
 
-		// メモリ量の算出
-		VkMemoryRequirements reqs;
-		vkGetImageMemoryRequirements(m_device, colorTarget.image, &reqs);
+		// デプスバッファを再生成
+		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+		m_depthBuffer = CreateImage(extent.width, extent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
-		VkMemoryAllocateInfo info{};
-		info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		info.pNext = nullptr;
-		info.allocationSize = reqs.size;
-		info.memoryTypeIndex = GetMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		result = vkAllocateMemory(m_device, &info, nullptr, &colorTarget.memory);
-		ThrowIfFailed(result, "vkAllocateMemory Failed.");
-		result = vkBindImageMemory(m_device, colorTarget.image, colorTarget.memory, 0);
-		ThrowIfFailed(result, "vkBindImageMemory Failed.");
-
-		VkImageViewCreateInfo viewCI{};
-		viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		viewCI.pNext = nullptr;
-		viewCI.flags = 0;
-		viewCI.image = colorTarget.image;
-		viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		viewCI.format = imageCI.format;
-		viewCI.components = book_util::DefaultComponentMapping();
-		viewCI.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-		result = vkCreateImageView(m_device, &viewCI, nullptr, &colorTarget.view);
-		ThrowIfFailed(result, "vkCreateImageView Failed.");
+		// フレームバッファを準備
+		PrepareFramebuffers();
 	}
 
-	// 描画先デプスバッファの準備
-	ImageObject depthTarget;
-	{
-		VkImageCreateInfo imageCI{};
-		imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		imageCI.pNext = nullptr;
-		imageCI.flags = 0;
-		imageCI.imageType = VK_IMAGE_TYPE_2D;
-		imageCI.format = depthFormat;
-		imageCI.extent.width = TextureWidth;
-		imageCI.extent.height = TextureHeight;
-		imageCI.extent.depth = 1;
-		imageCI.mipLevels = 1;
-		imageCI.arrayLayers = 1;
-		imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
-		imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageCI.queueFamilyIndexCount = 0;
-		imageCI.pQueueFamilyIndices = nullptr;
-		imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		VkResult result = vkCreateImage(m_device, &imageCI, nullptr, &depthTarget.image);
-		ThrowIfFailed(result, "vkCreateImage Failed.");
-
-		// メモリ量の算出
-		VkMemoryRequirements reqs;
-		vkGetImageMemoryRequirements(m_device, depthTarget.image, &reqs);
-
-		VkMemoryAllocateInfo info{};
-		info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		info.pNext = nullptr;
-		info.allocationSize = reqs.size;
-		info.memoryTypeIndex = GetMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		result = vkAllocateMemory(m_device, &info, nullptr, &depthTarget.memory);
-		ThrowIfFailed(result, "vkAllocateMemory Failed.");
-		result = vkBindImageMemory(m_device, depthTarget.image, depthTarget.memory, 0);
-		ThrowIfFailed(result, "vkBindImageMemory Failed.");
-
-		VkImageViewCreateInfo viewCI{};
-		viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		viewCI.pNext = nullptr;
-		viewCI.flags = 0;
-		viewCI.image = depthTarget.image;
-		viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		viewCI.format = imageCI.format;
-		viewCI.components = book_util::DefaultComponentMapping();
-		viewCI.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
-		result = vkCreateImageView(m_device, &viewCI, nullptr, &depthTarget.view);
-		ThrowIfFailed(result, "vkCreateImageView Failed.");
-	}
-
-	m_colorTarget = colorTarget;
-	m_depthTarget = depthTarget;
-
-	std::vector<VkImageView> views;
-	views.push_back(m_colorTarget.view);
-	views.push_back(m_depthTarget.view);
-	VkRenderPass renderPass = GetRenderPass("render_target");
-	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
+	return result;
 }
 
 void RenderToTextureApp::PrepareTeapot()
@@ -965,6 +848,123 @@ void RenderToTextureApp::CreatePipelinePlane()
 	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
 
 	book_util::DestroyShaderModules(m_device, shaderStages);
+}
+
+void RenderToTextureApp::PrepareRenderTexture()
+{
+	// 描画先テクスチャの準備
+	ImageObject colorTarget;
+	VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
+	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+
+	{
+		VkImageCreateInfo imageCI{};
+		imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageCI.pNext = nullptr;
+		imageCI.flags = 0;
+		imageCI.imageType = VK_IMAGE_TYPE_2D;
+		imageCI.format = colorFormat;
+		imageCI.extent.width = TextureWidth;
+		imageCI.extent.height = TextureHeight;
+		imageCI.extent.depth = 1;
+		imageCI.mipLevels = 1;
+		imageCI.arrayLayers = 1;
+		imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageCI.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageCI.queueFamilyIndexCount = 0;
+		imageCI.pQueueFamilyIndices = nullptr;
+		imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		VkResult result = vkCreateImage(m_device, &imageCI, nullptr, &colorTarget.image);
+		ThrowIfFailed(result, "vkCreateImage Failed.");
+
+		// メモリ量の算出
+		VkMemoryRequirements reqs;
+		vkGetImageMemoryRequirements(m_device, colorTarget.image, &reqs);
+
+		VkMemoryAllocateInfo info{};
+		info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		info.pNext = nullptr;
+		info.allocationSize = reqs.size;
+		info.memoryTypeIndex = GetMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		result = vkAllocateMemory(m_device, &info, nullptr, &colorTarget.memory);
+		ThrowIfFailed(result, "vkAllocateMemory Failed.");
+		result = vkBindImageMemory(m_device, colorTarget.image, colorTarget.memory, 0);
+		ThrowIfFailed(result, "vkBindImageMemory Failed.");
+
+		VkImageViewCreateInfo viewCI{};
+		viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewCI.pNext = nullptr;
+		viewCI.flags = 0;
+		viewCI.image = colorTarget.image;
+		viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewCI.format = imageCI.format;
+		viewCI.components = book_util::DefaultComponentMapping();
+		viewCI.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+		result = vkCreateImageView(m_device, &viewCI, nullptr, &colorTarget.view);
+		ThrowIfFailed(result, "vkCreateImageView Failed.");
+	}
+
+	// 描画先デプスバッファの準備
+	ImageObject depthTarget;
+	{
+		VkImageCreateInfo imageCI{};
+		imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageCI.pNext = nullptr;
+		imageCI.flags = 0;
+		imageCI.imageType = VK_IMAGE_TYPE_2D;
+		imageCI.format = depthFormat;
+		imageCI.extent.width = TextureWidth;
+		imageCI.extent.height = TextureHeight;
+		imageCI.extent.depth = 1;
+		imageCI.mipLevels = 1;
+		imageCI.arrayLayers = 1;
+		imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageCI.queueFamilyIndexCount = 0;
+		imageCI.pQueueFamilyIndices = nullptr;
+		imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		VkResult result = vkCreateImage(m_device, &imageCI, nullptr, &depthTarget.image);
+		ThrowIfFailed(result, "vkCreateImage Failed.");
+
+		// メモリ量の算出
+		VkMemoryRequirements reqs;
+		vkGetImageMemoryRequirements(m_device, depthTarget.image, &reqs);
+
+		VkMemoryAllocateInfo info{};
+		info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		info.pNext = nullptr;
+		info.allocationSize = reqs.size;
+		info.memoryTypeIndex = GetMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		result = vkAllocateMemory(m_device, &info, nullptr, &depthTarget.memory);
+		ThrowIfFailed(result, "vkAllocateMemory Failed.");
+		result = vkBindImageMemory(m_device, depthTarget.image, depthTarget.memory, 0);
+		ThrowIfFailed(result, "vkBindImageMemory Failed.");
+
+		VkImageViewCreateInfo viewCI{};
+		viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewCI.pNext = nullptr;
+		viewCI.flags = 0;
+		viewCI.image = depthTarget.image;
+		viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewCI.format = imageCI.format;
+		viewCI.components = book_util::DefaultComponentMapping();
+		viewCI.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+		result = vkCreateImageView(m_device, &viewCI, nullptr, &depthTarget.view);
+		ThrowIfFailed(result, "vkCreateImageView Failed.");
+	}
+
+	m_colorTarget = colorTarget;
+	m_depthTarget = depthTarget;
+
+	std::vector<VkImageView> views;
+	views.push_back(m_colorTarget.view);
+	views.push_back(m_depthTarget.view);
+	VkRenderPass renderPass = GetRenderPass("render_target");
+	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
 }
 
 void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
