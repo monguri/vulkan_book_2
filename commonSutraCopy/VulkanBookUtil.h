@@ -148,6 +148,11 @@ namespace book_util
   inline VkPipelineShaderStageCreateInfo LoadShader(VkDevice device, const char* fileName, VkShaderStageFlagBits stage)
   {
     std::ifstream infile(fileName, std::ios::binary);
+    if (!infile.is_open())
+    {
+      throw VulkanException(std::string(fileName) + std::string("not exist."));
+    }
+
     std::vector<char> code;
     code.resize(uint32_t(infile.seekg(0, std::ifstream::end).tellg()));
     infile.seekg(0, std::ifstream::beg).read(code.data(), code.size());
