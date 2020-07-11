@@ -5,16 +5,30 @@ VisualStudioVersion = 15.0.28307.271
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "08_PostEffect", "08_PostEffect.vcxproj", "{19ACDEA6-A431-47EA-BACE-48DF06A21CCC}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "08_PostEffect_SutraCopy", "..\08_PostEffect_SutraCopy\08_PostEffect_SutraCopy.vcxproj", "{45499DB7-6844-42E6-953E-4DE7E7293A5F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{19ACDEA6-A431-47EA-BACE-48DF06A21CCC}.Debug|x64.ActiveCfg = Debug|x64
 		{19ACDEA6-A431-47EA-BACE-48DF06A21CCC}.Debug|x64.Build.0 = Debug|x64
+		{19ACDEA6-A431-47EA-BACE-48DF06A21CCC}.Debug|x86.ActiveCfg = Debug|x64
 		{19ACDEA6-A431-47EA-BACE-48DF06A21CCC}.Release|x64.ActiveCfg = Release|x64
 		{19ACDEA6-A431-47EA-BACE-48DF06A21CCC}.Release|x64.Build.0 = Release|x64
+		{19ACDEA6-A431-47EA-BACE-48DF06A21CCC}.Release|x86.ActiveCfg = Release|x64
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Debug|x64.ActiveCfg = Debug|x64
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Debug|x64.Build.0 = Debug|x64
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Debug|x86.ActiveCfg = Debug|Win32
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Debug|x86.Build.0 = Debug|Win32
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Release|x64.ActiveCfg = Release|x64
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Release|x64.Build.0 = Release|x64
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Release|x86.ActiveCfg = Release|Win32
+		{45499DB7-6844-42E6-953E-4DE7E7293A5F}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
