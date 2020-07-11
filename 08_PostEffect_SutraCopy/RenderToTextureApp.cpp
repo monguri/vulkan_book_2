@@ -7,7 +7,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-void RenderToTextureApp::Prepare()
+void PostEffectApp::Prepare()
 {
 	CreateRenderPass();
 
@@ -52,7 +52,7 @@ void RenderToTextureApp::Prepare()
 	CreatePipelinePlane();
 }
 
-void RenderToTextureApp::Cleanup()
+void PostEffectApp::Cleanup()
 {
 	DestroyModelData(m_teapot);
 	DestroyModelData(m_plane);
@@ -81,7 +81,7 @@ void RenderToTextureApp::Cleanup()
 	m_commandBuffers.clear();
 }
 
-void RenderToTextureApp::Render()
+void PostEffectApp::Render()
 {
 	if (m_isMinimizedWindow)
 	{
@@ -162,7 +162,7 @@ void RenderToTextureApp::Render()
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
 }
 
-void RenderToTextureApp::CreateRenderPass()
+void PostEffectApp::CreateRenderPass()
 {
 	// 2個のレンダーパスで同じようなコードを書くが、本でソース共通化してないので共通化しない
 	{
@@ -292,7 +292,7 @@ void RenderToTextureApp::CreateRenderPass()
 	}
 }
 
-void RenderToTextureApp::PrepareFramebuffers()
+void PostEffectApp::PrepareFramebuffers()
 {
 	uint32_t imageCount = m_swapchain->GetImageCount();
 	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
@@ -309,7 +309,7 @@ void RenderToTextureApp::PrepareFramebuffers()
 	}
 }
 
-bool RenderToTextureApp::OnSizeChanged(uint32_t width, uint32_t height)
+bool PostEffectApp::OnSizeChanged(uint32_t width, uint32_t height)
 {
 	bool result = VulkanAppBase::OnSizeChanged(width, height);
 	if (result)
@@ -328,7 +328,7 @@ bool RenderToTextureApp::OnSizeChanged(uint32_t width, uint32_t height)
 	return result;
 }
 
-void RenderToTextureApp::PrepareTeapot()
+void PostEffectApp::PrepareTeapot()
 {
 	// ステージ用のVBとIB、ターゲットのVBとIBの用意
 	uint32_t bufferSizeVB = uint32_t(sizeof(TeapotModel::TeapotVerticesPN));
@@ -449,7 +449,7 @@ void RenderToTextureApp::PrepareTeapot()
 	m_layoutTeapot = layout;
 }
 
-void RenderToTextureApp::PreparePlane()
+void PostEffectApp::PreparePlane()
 {
 	// UVは逆にする
 	VertexPT vertices[] = {
@@ -593,7 +593,7 @@ void RenderToTextureApp::PreparePlane()
 	m_layoutPlane = layout;
 }
 
-void RenderToTextureApp::CreatePipelineTeapot()
+void PostEffectApp::CreatePipelineTeapot()
 {
 	// Teapot用パイプライン
 	uint32_t stride = uint32_t(sizeof(TeapotModel::Vertex));
@@ -718,7 +718,7 @@ void RenderToTextureApp::CreatePipelineTeapot()
 	book_util::DestroyShaderModules(m_device, shaderStages);
 }
 
-void RenderToTextureApp::CreatePipelinePlane()
+void PostEffectApp::CreatePipelinePlane()
 {
 	// Plane用パイプライン
 	uint32_t stride = uint32_t(sizeof(VertexPT));
@@ -847,7 +847,7 @@ void RenderToTextureApp::CreatePipelinePlane()
 	book_util::DestroyShaderModules(m_device, shaderStages);
 }
 
-void RenderToTextureApp::PrepareRenderTexture()
+void PostEffectApp::PrepareRenderTexture()
 {
 	// 描画先テクスチャの準備
 	ImageObject colorTarget;
@@ -964,7 +964,7 @@ void RenderToTextureApp::PrepareRenderTexture()
 	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
 }
 
-void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
+void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
@@ -1026,7 +1026,7 @@ void RenderToTextureApp::RenderToTexture(const VkCommandBuffer& command)
 	vkCmdEndRenderPass(command);
 }
 
-void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
+void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
@@ -1101,7 +1101,7 @@ void RenderToTextureApp::RenderToMain(const VkCommandBuffer& command)
 	vkCmdEndRenderPass(command);
 }
 
-void RenderToTextureApp::DestroyModelData(ModelData& model)
+void PostEffectApp::DestroyModelData(ModelData& model)
 {
 	for (const BufferObject& bufObj : { model.vertexBuffer, model.indexBuffer })
 	{
