@@ -1,4 +1,4 @@
-#include "RenderToTextureApp.h"
+#include "PostEffectApp.h"
 #include "VulkanBookUtil.h"
 
 const int WindowWidth = 800, WindowHeight = 600;
