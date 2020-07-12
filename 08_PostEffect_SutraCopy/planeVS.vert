@@ -10,17 +10,16 @@ out gl_PerVertex
 	vec4 gl_Position;
 };
 
-layout(set=0, binding=0)
-uniform SceneParameters
-{
-	mat4 world;
-	mat4 view;
-	mat4 proj;
-};
-
 void main()
 {
-	gl_Position = proj * view * world * inPos;
-	outUV = inUV;
+	float x = float(gl_VertexIndex % 2);
+	float y = float(gl_VertexIndex / 2);
+	gl_Position = vec4(
+		2.0 * x - 1.0f,
+		2.0 * y - 1.0f,
+		0.0f,
+		1.0f
+	);
+	outUV = vec2(x, y);
 }
 

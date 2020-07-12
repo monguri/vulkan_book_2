@@ -451,55 +451,14 @@ void PostEffectApp::PrepareTeapot()
 
 void PostEffectApp::PreparePlane()
 {
-	// UVは逆にする
-	VertexPT vertices[] = {
-		{glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec2(0.0f, 1.0f)},
-		{glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec2(0.0f, 0.0f)},
-		{glm::vec3(1.0f, 1.0f, 0.0f), glm::vec2(1.0f, 1.0f)},
-		{glm::vec3(1.0f, -1.0f, 0.0f), glm::vec2(1.0f, 0.0f)},
-	};
-	uint32_t indices[] = {0, 1, 2, 3};
-
-	// TODO:こっちにはステージ、ターゲットという違いは作らず、最初からvkMapMemoryで
-	// 本番にコピーする。なぜ？
-	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	VkBufferUsageFlags usageVB = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	VkBufferUsageFlags usageIB = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	uint32_t bufferSizeVB = uint32_t(sizeof(vertices));
-	uint32_t bufferSizeIB = uint32_t(sizeof(indices));
-	m_plane.vertexBuffer = CreateBuffer(bufferSizeVB, usageVB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, memoryProps);
-	m_plane.indexBuffer = CreateBuffer(bufferSizeIB, usageIB | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, memoryProps);
-	m_plane.vertexCount = _countof(vertices);
-	m_plane.indexCount = _countof(indices);
-
-	// VBとIBにデータをコピー
-	void* p = nullptr;
-	vkMapMemory(m_device, m_plane.vertexBuffer.memory, 0, VK_WHOLE_SIZE, 0, &p);
-	memcpy(p, vertices, bufferSizeVB);
-	vkUnmapMemory(m_device, m_plane.vertexBuffer.memory);
-	vkMapMemory(m_device, m_plane.indexBuffer.memory, 0, VK_WHOLE_SIZE, 0, &p);
-	memcpy(p, indices, bufferSizeIB);
-	vkUnmapMemory(m_device, m_plane.indexBuffer.memory);
-
-	// 定数バッファの準備
-	uint32_t imageCount = m_swapchain->GetImageCount();
-	VkMemoryPropertyFlags uboMemoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	uint32_t bufferSize = uint32_t(sizeof(ShaderParameters));
-	m_plane.sceneUB = CreateUniformBuffers(bufferSize, imageCount);
-
 	// テクスチャを貼る板用のディスクリプタセット/レイアウトを準備
 	LayoutInfo layout{};
-	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
+	VkDescriptorSetLayoutBinding descSetLayoutBindings[1];
 	descSetLayoutBindings[0].binding = 0;
-	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descSetLayoutBindings[0].descriptorCount = 1;
-	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	descSetLayoutBindings[0].pImmutableSamplers = nullptr;
-	descSetLayoutBindings[1].binding = 1;
-	descSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descSetLayoutBindings[1].descriptorCount = 1;
-	descSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	descSetLayoutBindings[1].pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
 	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -517,6 +476,7 @@ void PostEffectApp::PreparePlane()
 	descriptorSetAI.descriptorSetCount = 1;
 	descriptorSetAI.pSetLayouts = &layout.descriptorSet;
 
+	uint32_t imageCount = m_swapchain->GetImageCount();
 	m_plane.descriptorSet.reserve(imageCount);
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
@@ -552,26 +512,13 @@ void PostEffectApp::PreparePlane()
 	// ディスクリプタに書き込む
 	for (size_t i = 0; i < imageCount; ++i)
 	{
-		VkDescriptorBufferInfo uboInfo{};
-		uboInfo.buffer = m_plane.sceneUB[i].buffer;
-		uboInfo.offset = 0;
-		uboInfo.range = VK_WHOLE_SIZE;
-
-		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
-			m_plane.descriptorSet[i],
-			0,
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-		);
-		descSetSceneUB.pBufferInfo = &uboInfo;
-		vkUpdateDescriptorSets(m_device, 1, &descSetSceneUB, 0, nullptr);
-
 		VkDescriptorImageInfo texInfo{};
 		texInfo.sampler = m_sampler;
 		texInfo.imageView = m_colorTarget.view;
 		texInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		VkWriteDescriptorSet descSetTexture = book_util::PrepareWriteDescriptorSet(
 			m_plane.descriptorSet[i],
-			1,
+			0, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
 		);
 		descSetTexture.pImageInfo = &texInfo;
@@ -663,11 +610,9 @@ void PostEffectApp::CreatePipelineTeapot()
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
-	VkOffset2D offset{};
-	offset.x = 0;
-	offset.y = 0;
 	VkRect2D scissor{};
-	scissor.offset = offset;
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
 	scissor.extent.width = TextureWidth;
 	scissor.extent.height = TextureHeight;
 
@@ -721,6 +666,8 @@ void PostEffectApp::CreatePipelineTeapot()
 void PostEffectApp::CreatePipelinePlane()
 {
 	// Plane用パイプライン
+	// gl_VertexIndexでシェーダ内でPlaneのモデルを作ってるので
+	// 頂点数だけあればいらないはずだがまだVertexPTを渡している
 	uint32_t stride = uint32_t(sizeof(VertexPT));
 
 	VkVertexInputBindingDescription vibDesc{};
@@ -787,7 +734,8 @@ void PostEffectApp::CreatePipelinePlane()
 	VkRect2D scissor{};
 	scissor.offset.x = 0;
 	scissor.offset.y = 0;
-	scissor.extent = extent;
+	scissor.extent.width = 0;
+	scissor.extent.height = 0;
 
 	VkPipelineViewportStateCreateInfo viewportCI{};
 	viewportCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -1014,7 +962,24 @@ void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
 		vkUnmapMemory(m_device, ubo.memory);
 	}
 
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+	VkViewport viewport;
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = float(extent.width);
+	viewport.height = float(extent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor{};
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	scissor.extent = extent;
+
 	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdSetScissor(command, 0, 1, &scissor);
+	vkCmdSetViewport(command, 0, 1, &viewport);
 
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_teapot.pipeline);
 	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutTeapot.pipeline, 0, 1, &m_teapot.descriptorSet[m_frameIndex], 0, nullptr);
@@ -1050,31 +1015,6 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 	rpBI.clearValueCount = uint32_t(clearValue.size());
 	rpBI.pClearValues = clearValue.data();
 
-	{
-		ShaderParameters shaderParam{};
-		shaderParam.world = glm::rotate(glm::mat4(1.0f), glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		shaderParam.view = glm::lookAtRH(
-			glm::vec3(0.0f, 0.0f, 3.0f),
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 1.0f, 0.0f)
-		);
-
-		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-		shaderParam.proj = glm::perspectiveRH(
-			glm::radians(45.0f),
-			float(extent.width) / float(extent.height),
-			0.1f,
-			1000.0f
-		);
-
-		const BufferObject& ubo = m_plane.sceneUB[m_frameIndex];
-		void* p = nullptr;
-		VkResult result = vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
-		ThrowIfFailed(result, "vkMapMemory Failed.");
-		memcpy(p, &shaderParam, sizeof(ShaderParameters));
-		vkUnmapMemory(m_device, ubo.memory);
-	}
-
 	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_plane.pipeline);
@@ -1093,10 +1033,7 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 	vkCmdSetViewport(command, 0, 1, &viewport);
 
 	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutPlane.pipeline, 0, 1, &m_plane.descriptorSet[m_frameIndex], 0, nullptr);
-	vkCmdBindIndexBuffer(command, m_plane.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	VkDeviceSize offsets[] = {0};
-	vkCmdBindVertexBuffers(command, 0, 1, &m_plane.vertexBuffer.buffer, offsets);
-	vkCmdDrawIndexed(command, m_plane.indexCount, 1, 0, 0, 0);
+	vkCmdDraw(command, 4, 1, 0, 0);
 
 	vkCmdEndRenderPass(command);
 }
