@@ -106,6 +106,10 @@ void PostEffectApp::Cleanup()
 
 	vkFreeCommandBuffers(m_device, m_commandPool, uint32_t(m_commandBuffers.size()), m_commandBuffers.data());
 	m_commandBuffers.clear();
+
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 }
 
 void PostEffectApp::Render()
@@ -950,7 +954,27 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutPlane.pipeline, 0, 1, &m_plane.descriptorSet[m_frameIndex], 0, nullptr);
 	vkCmdDraw(command, 4, 1, 0, 0);
 
+	RenderImGui(command);
+
 	vkCmdEndRenderPass(command);
+}
+
+void PostEffectApp::RenderImGui(const VkCommandBuffer& command)
+{
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
+	{
+		ImGui::Begin("Control");
+		ImGui::Text("DrawTeapot");
+		float framerate = ImGui::GetIO().Framerate;
+		ImGui::Text("Framerate(avg) %.3f ms/frame", 1000.0f / framerate);
+		ImGui::End();
+	}
+
+	ImGui::Render();
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command);
 }
 
 void PostEffectApp::DestroyModelData(ModelData& model)
