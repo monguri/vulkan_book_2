@@ -5,6 +5,10 @@
 #include <random>
 #include <array>
 
+#include "imgui.h"
+#include "examples/imgui_impl_vulkan.h"
+#include "examples/imgui_impl_glfw.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 
 void PostEffectApp::Prepare()
@@ -50,6 +54,29 @@ void PostEffectApp::Prepare()
 
 	CreatePipelineTeapot();
 	CreatePipelinePlane();
+
+	// ImGui
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplGlfw_InitForVulkan(m_window, true);
+
+	ImGui_ImplVulkan_InitInfo info{};
+	info.Instance = m_vkInstance;
+	info.PhysicalDevice = m_physicalDevice;
+	info.Device = m_device;
+	info.QueueFamily = m_gfxQueueIndex;
+	info.Queue = m_deviceQueue;
+	info.DescriptorPool = m_descriptorPool;
+	info.MinImageCount = imageCount;
+	info.ImageCount = imageCount;
+
+	VkRenderPass renderPass = GetRenderPass("main");
+	ImGui_ImplVulkan_Init(&info, renderPass);
+
+	const VkCommandBuffer& command = CreateCommandBuffer();
+	ImGui_ImplVulkan_CreateFontsTexture(command);
+	FinishCommandBuffer(command);
+	vkEndCommandBuffer(m_commandBuffers[0]);
 }
 
 void PostEffectApp::Cleanup()
