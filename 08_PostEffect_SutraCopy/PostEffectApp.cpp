@@ -668,7 +668,7 @@ void PostEffectApp::CreatePipelinePlane()
 	// シェーダのロード
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages
 	{
-		book_util::LoadShader(m_device, "planeVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
+		book_util::LoadShader(m_device, "quadVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
 		book_util::LoadShader(m_device, "planeFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
 	};
 
