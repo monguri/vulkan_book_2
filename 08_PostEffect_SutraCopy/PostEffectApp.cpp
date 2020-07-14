@@ -11,6 +11,13 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+static glm::vec4 colorSet[] = {
+	glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+	glm::vec4(1.0f, 0.65f, 1.0f, 1.0f),
+	glm::vec4(0.1f, 0.5f, 1.0f, 1.0f),
+	glm::vec4(0.6f, 1.0f, 0.8f, 1.0f),
+};
+
 void PostEffectApp::Prepare()
 {
 	CreateRenderPass();
@@ -49,11 +56,14 @@ void PostEffectApp::Prepare()
 
 	PrepareRenderTexture();
 
+	PrepareInstanceData();
 	PrepareTeapot();
 	PreparePlane();
 
 	CreatePipelineTeapot();
 	CreatePipelinePlane();
+
+	PrepareDescriptors();
 
 	// ImGui
 	IMGUI_CHECKVERSION();
@@ -318,41 +328,6 @@ void PostEffectApp::PrepareTeapot()
 	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &layout.descriptorSet);
 	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
 
-	// teapot用のディスクリプタセット/レイアウトを準備
-	VkDescriptorSetAllocateInfo descriptorSetAI{};
-	descriptorSetAI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptorSetAI.pNext = nullptr;
-	descriptorSetAI.descriptorPool = m_descriptorPool;
-	descriptorSetAI.descriptorSetCount = 1;
-	descriptorSetAI.pSetLayouts = &layout.descriptorSet;
-
-	m_teapot.descriptorSet.reserve(imageCount);
-	for (uint32_t i = 0; i < imageCount; ++i)
-	{
-		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-		result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
-		ThrowIfFailed(result, "vkAllocateDescriptorSets Failed.");
-
-		m_teapot.descriptorSet.push_back(descriptorSet);
-	}
-
-	// ディスクリプタに書き込む
-	for (size_t i = 0; i < imageCount; ++i)
-	{
-		VkDescriptorBufferInfo uniformBufferInfo{};
-		uniformBufferInfo.buffer = m_teapot.sceneUB[i].buffer;
-		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = VK_WHOLE_SIZE;
-
-		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
-			m_teapot.descriptorSet[i],
-			0,
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-		);
-		descSetSceneUB.pBufferInfo = &uniformBufferInfo;
-		vkUpdateDescriptorSets(m_device, 1, &descSetSceneUB, 0, nullptr);
-	}
-
 	// パイプラインレイアウトを準備
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
 	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -366,6 +341,105 @@ void PostEffectApp::PrepareTeapot()
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 
 	m_layoutTeapot = layout;
+}
+
+void PostEffectApp::PrepareInstanceData()
+{
+	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+	// インスタンシング用のユニフォームバッファを準備
+	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceCount;
+	m_instanceUniforms.resize(m_swapchain->GetImageCount());
+	for (BufferObject& ubo : m_instanceUniforms)
+	{
+		ubo = CreateBuffer(bufferSize, usage, memoryProps);
+	}
+
+	std::random_device rnd;
+	std::vector<InstanceData> data(InstanceCount);
+
+	for (uint32_t i = 0; i < InstanceCount; ++i)
+	{
+		const glm::vec3& axisX = glm::vec3(1.0f, 0.0f, 0.0f);
+		const glm::vec3& axisZ = glm::vec3(0.0f, 0.0f, 1.0f);
+		float k = float(rnd() % 360);
+		float x = (i % 6) * 3.0f;
+		float z = (i / 6) * -3.0f;
+
+		glm::mat4 mat(1.0f);
+		mat = glm::translate(mat, glm::vec3(x, 0.0f, z));
+		mat = glm::rotate(mat, k, axisX);
+		mat = glm::rotate(mat, k, axisZ);
+
+		data[i].world = mat;
+		data[i].color = colorSet[i % _countof(colorSet)];
+	}
+
+	for (const BufferObject& ubo : m_instanceUniforms)
+	{
+		void* p = nullptr;
+		vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+		memcpy(p, data.data(), bufferSize);
+		vkUnmapMemory(m_device, ubo.memory);
+	}
+}
+
+void PostEffectApp::PrepareDescriptors()
+{
+	// teapot用ディスクリプタ準備
+	VkDescriptorSetAllocateInfo descriptorSetAI{};
+	descriptorSetAI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptorSetAI.pNext = nullptr;
+	descriptorSetAI.descriptorPool = m_descriptorPool;
+	descriptorSetAI.descriptorSetCount = 1;
+	descriptorSetAI.pSetLayouts = &m_layoutTeapot.descriptorSet;
+
+	uint32_t imageCount = m_swapchain->GetImageCount();
+	m_teapot.descriptorSet.reserve(imageCount);
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+		VkResult result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
+		ThrowIfFailed(result, "vkAllocateDescriptorSets Failed.");
+
+		m_teapot.descriptorSet.push_back(descriptorSet);
+	}
+
+	// ディスクリプタに書き込む
+	for (size_t i = 0; i < imageCount; ++i)
+	{
+		VkDescriptorBufferInfo uniformBufferInfo{};
+		uniformBufferInfo.buffer = m_teapot.sceneUB[i].buffer;
+		uniformBufferInfo.offset = 0;
+		uniformBufferInfo.range = VK_WHOLE_SIZE;
+
+		VkDescriptorBufferInfo instanceBufferInfo{};
+		instanceBufferInfo.buffer = m_instanceUniforms[i].buffer;
+		instanceBufferInfo.offset = 0;
+		instanceBufferInfo.range = VK_WHOLE_SIZE;
+
+		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
+			m_teapot.descriptorSet[i],
+			0,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+		);
+		descSetSceneUB.pBufferInfo = &uniformBufferInfo;
+
+		VkWriteDescriptorSet descSetInstUB = book_util::PrepareWriteDescriptorSet(
+			m_teapot.descriptorSet[i],
+			1,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+		);
+		descSetInstUB.pBufferInfo = &instanceBufferInfo;
+
+		std::array<VkWriteDescriptorSet, 2> writeDescriptorSets{
+			descSetSceneUB, descSetInstUB
+		};
+
+		uint32_t count = uint32_t(writeDescriptorSets.size());
+		vkUpdateDescriptorSets(m_device, count, writeDescriptorSets.data(), 0, nullptr);
+	}
 }
 
 void PostEffectApp::PreparePlane()
@@ -521,19 +595,21 @@ void PostEffectApp::CreatePipelineTeapot()
 	multisampleCI.alphaToCoverageEnable = VK_FALSE;
 	multisampleCI.alphaToOneEnable = VK_FALSE;
 	
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+
 	VkViewport viewport{};
 	viewport.x = 0;
 	viewport.y = 0;
-	viewport.width = TextureWidth;
-	viewport.height = TextureHeight;
+	viewport.width = float(extent.width);
+	viewport.height = float(extent.height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
 	VkRect2D scissor{};
 	scissor.offset.x = 0;
 	scissor.offset.y = 0;
-	scissor.extent.width = TextureWidth;
-	scissor.extent.height = TextureHeight;
+	scissor.extent.width = 0; // VkPipelineDynamicStateCreateInfoを設定するときはVkViewportとVkScissorの設定はダミーになるので適当で大丈夫
+	scissor.extent.height = 0; // VkPipelineDynamicStateCreateInfoを設定するときはVkViewportとVkScissorの設定はダミーになるので適当で大丈夫
 
 	VkPipelineViewportStateCreateInfo viewportCI{};
 	viewportCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -550,6 +626,17 @@ void PostEffectApp::CreatePipelineTeapot()
 		book_util::LoadShader(m_device, "modelVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
 		book_util::LoadShader(m_device, "modelFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
 	};
+
+	std::vector<VkDynamicState> dynamicStates{
+		VK_DYNAMIC_STATE_SCISSOR,
+		VK_DYNAMIC_STATE_VIEWPORT
+	};
+	VkPipelineDynamicStateCreateInfo pipelineDynamicStateCI{};
+	pipelineDynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	pipelineDynamicStateCI.pNext = nullptr;
+	pipelineDynamicStateCI.flags = 0;
+	pipelineDynamicStateCI.dynamicStateCount = uint32_t(dynamicStates.size());
+	pipelineDynamicStateCI.pDynamicStates = dynamicStates.data();
 
 	const VkPipelineRasterizationStateCreateInfo& rasterizerState = book_util::GetDefaultRasterizerState();
 
@@ -570,7 +657,7 @@ void PostEffectApp::CreatePipelineTeapot()
 	pipelineCI.pMultisampleState = &multisampleCI;
 	pipelineCI.pDepthStencilState = &dsState;
 	pipelineCI.pColorBlendState = &colorBlendStateCI;
-	pipelineCI.pDynamicState = nullptr; // DynamicState不要
+	pipelineCI.pDynamicState = &pipelineDynamicStateCI;
 	pipelineCI.layout = m_layoutTeapot.pipeline;
 	pipelineCI.renderPass = renderPass;
 	pipelineCI.subpass = 0;
@@ -653,8 +740,8 @@ void PostEffectApp::CreatePipelinePlane()
 	VkRect2D scissor{};
 	scissor.offset.x = 0;
 	scissor.offset.y = 0;
-	scissor.extent.width = 0;
-	scissor.extent.height = 0;
+	scissor.extent.width = 0; // VkPipelineDynamicStateCreateInfoを設定するときはVkViewportとVkScissorの設定はダミーになるので適当で大丈夫
+	scissor.extent.height = 0; // VkPipelineDynamicStateCreateInfoを設定するときはVkViewportとVkScissorの設定はダミーになるので適当で大丈夫
 
 	VkPipelineViewportStateCreateInfo viewportCI{};
 	viewportCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -720,6 +807,9 @@ void PostEffectApp::PrepareRenderTexture()
 	ImageObject colorTarget;
 	VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
 	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+	const VkExtent2D& surfaceExtent = m_swapchain->GetSurfaceExtent();
+	uint32_t width = surfaceExtent.width;
+	uint32_t height = surfaceExtent.height;
 
 	{
 		VkImageCreateInfo imageCI{};
@@ -728,8 +818,8 @@ void PostEffectApp::PrepareRenderTexture()
 		imageCI.flags = 0;
 		imageCI.imageType = VK_IMAGE_TYPE_2D;
 		imageCI.format = colorFormat;
-		imageCI.extent.width = TextureWidth;
-		imageCI.extent.height = TextureHeight;
+		imageCI.extent.width = width;
+		imageCI.extent.height = height;
 		imageCI.extent.depth = 1;
 		imageCI.mipLevels = 1;
 		imageCI.arrayLayers = 1;
@@ -779,8 +869,8 @@ void PostEffectApp::PrepareRenderTexture()
 		imageCI.flags = 0;
 		imageCI.imageType = VK_IMAGE_TYPE_2D;
 		imageCI.format = depthFormat;
-		imageCI.extent.width = TextureWidth;
-		imageCI.extent.height = TextureHeight;
+		imageCI.extent.width = width;
+		imageCI.extent.height = height;
 		imageCI.extent.depth = 1;
 		imageCI.mipLevels = 1;
 		imageCI.arrayLayers = 1;
@@ -828,7 +918,7 @@ void PostEffectApp::PrepareRenderTexture()
 	views.push_back(m_colorTarget.view);
 	views.push_back(m_depthTarget.view);
 	VkRenderPass renderPass = GetRenderPass("render_target");
-	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
+	m_renderTextureFB = CreateFramebuffer(renderPass, width, height, uint32_t(views.size()), views.data());
 }
 
 void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
@@ -840,11 +930,11 @@ void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
 		}
 	};
 
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
 	VkRect2D renderArea{};
 	renderArea.offset.x = 0;
 	renderArea.offset.y = 0;
-	renderArea.extent.width = TextureWidth;
-	renderArea.extent.height = TextureHeight;
+	renderArea.extent = extent;
 
 	VkRenderPass renderPass = GetRenderPass("render_target");
 	VkRenderPassBeginInfo rpBI{};
@@ -858,14 +948,12 @@ void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
 
 	{
 		ShaderParameters shaderParams{};
-		shaderParams.world = glm::mat4(1.0f);
 		shaderParams.view = glm::lookAtRH(
-			glm::vec3(0.0f, 2.0f, 5.0f),
-			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(3.0f, 5.0f, 5.0f),
+			glm::vec3(3.0f, 2.0f, 0.0f),
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
 
-		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
 		shaderParams.proj = glm::perspectiveRH(
 			glm::radians(45.0f),
 			float(extent.width) / float(extent.height),
@@ -881,7 +969,6 @@ void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
 		vkUnmapMemory(m_device, ubo.memory);
 	}
 
-	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
 	VkViewport viewport;
 	viewport.x = 0;
 	viewport.y = 0;
@@ -905,7 +992,7 @@ void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
 	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 	VkDeviceSize offsets[] = {0};
 	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
-	vkCmdDrawIndexed(command, m_teapot.indexCount, 1, 0, 0, 0);
+	vkCmdDrawIndexed(command, m_teapot.indexCount, InstanceCount, 0, 0, 0);
 
 	vkCmdEndRenderPass(command);
 }

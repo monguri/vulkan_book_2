@@ -13,8 +13,7 @@ public:
 
 	enum
 	{
-		TextureWidth = 512,
-		TextureHeight = 512,
+		InstanceCount = 200
 	};
 
 private:
@@ -42,6 +41,7 @@ private:
 		VkPipeline pipeline;
 	};
 	ModelData m_teapot;
+	std::vector<BufferObject> m_instanceUniforms;
 	ModelData m_plane;
 
 	struct LayoutInfo
@@ -56,9 +56,17 @@ private:
 
 	struct ShaderParameters
 	{
-		glm::mat4 world;
 		glm::mat4 view;
 		glm::mat4 proj;
+	};
+	struct InstanceData
+	{
+		glm::mat4 world;
+		glm::vec4 color;
+	};
+	struct InstanceParameters
+	{
+		InstanceData data[InstanceCount];
 	};
 
 	ImageObject m_colorTarget, m_depthTarget;
@@ -69,7 +77,9 @@ private:
 	void PrepareFramebuffers();
 	void PrepareRenderTexture();
 	void PrepareTeapot();
+	void PrepareInstanceData();
 	void PreparePlane();
+	void PrepareDescriptors();
 	void CreatePipelineTeapot();
 	void CreatePipelinePlane();
 	void RenderToTexture(const VkCommandBuffer& command);
