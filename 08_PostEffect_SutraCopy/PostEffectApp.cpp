@@ -925,7 +925,7 @@ void PostEffectApp::RenderToTexture(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
-			{0.25f, 0.25f, 0.25f, 0.0f}, // for Color
+			{0.2f, 0.65f, 0.0f, 0.0f}, // for Color
 			{1.0f, 0}, // for Depth
 		}
 	};
