@@ -80,6 +80,7 @@ private:
 	void PrepareInstanceData();
 	void PreparePlane();
 	void PrepareDescriptors();
+	void PreparePostEffectDescriptors();
 	void CreatePipelineTeapot();
 	void CreatePipelinePlane();
 	void RenderToTexture(const VkCommandBuffer& command);

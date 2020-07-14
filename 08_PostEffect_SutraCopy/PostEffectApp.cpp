@@ -64,6 +64,7 @@ void PostEffectApp::Prepare()
 	CreatePipelinePlane();
 
 	PrepareDescriptors();
+	PreparePostEffectDescriptors();
 
 	// ImGui
 	IMGUI_CHECKVERSION();
@@ -252,6 +253,16 @@ bool PostEffectApp::OnSizeChanged(uint32_t width, uint32_t height)
 
 		// フレームバッファを準備
 		PrepareFramebuffers();
+
+		// ポストエフェクト用リソースの削除＆再生成
+		DestroyImage(m_colorTarget);
+		DestroyImage(m_depthTarget);
+		DestroyFramebuffers(1, &m_renderTextureFB);
+
+		PrepareRenderTexture();
+
+		// ディスクリプタを更新
+		PreparePostEffectDescriptors();
 	}
 
 	return result;
@@ -442,6 +453,27 @@ void PostEffectApp::PrepareDescriptors()
 	}
 }
 
+void PostEffectApp::PreparePostEffectDescriptors()
+{
+	// ディスクリプタに書き込む
+	uint32_t imageCount = m_swapchain->GetImageCount();
+
+	for (size_t i = 0; i < imageCount; ++i)
+	{
+		VkDescriptorImageInfo texInfo{};
+		texInfo.sampler = m_sampler;
+		texInfo.imageView = m_colorTarget.view;
+		texInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		VkWriteDescriptorSet descSetTexture = book_util::PrepareWriteDescriptorSet(
+			m_plane.descriptorSet[i],
+			0, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+		);
+		descSetTexture.pImageInfo = &texInfo;
+		vkUpdateDescriptorSets(m_device, 1, &descSetTexture, 0, nullptr);
+	}
+}
+
 void PostEffectApp::PreparePlane()
 {
 	// テクスチャを貼る板用のディスクリプタセット/レイアウトを準備
@@ -501,22 +533,6 @@ void PostEffectApp::PreparePlane()
 	samplerCI.unnormalizedCoordinates = VK_FALSE;
 	result = vkCreateSampler(m_device, &samplerCI, nullptr, &m_sampler);
 	ThrowIfFailed(result, "vkCreateSampler Failed.");
-
-	// ディスクリプタに書き込む
-	for (size_t i = 0; i < imageCount; ++i)
-	{
-		VkDescriptorImageInfo texInfo{};
-		texInfo.sampler = m_sampler;
-		texInfo.imageView = m_colorTarget.view;
-		texInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		VkWriteDescriptorSet descSetTexture = book_util::PrepareWriteDescriptorSet(
-			m_plane.descriptorSet[i],
-			0, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-		);
-		descSetTexture.pImageInfo = &texInfo;
-		vkUpdateDescriptorSets(m_device, 1, &descSetTexture, 0, nullptr);
-	}
 
 	// パイプラインレイアウトを準備
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
