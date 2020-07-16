@@ -202,6 +202,8 @@ void PostEffectApp::Render()
 	ThrowIfFailed(result, "vkQueueSubmit Failed.");
 
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
+
+	m_frameCount++;
 }
 
 void PostEffectApp::CreateRenderPass()
@@ -460,13 +462,26 @@ void PostEffectApp::PreparePostEffectDescriptors()
 
 	for (size_t i = 0; i < imageCount; ++i)
 	{
+		VkDescriptorBufferInfo effectUbo{};
+		effectUbo.buffer = m_plane.sceneUB[i].buffer;
+		effectUbo.offset = 0;
+		effectUbo.range = VK_WHOLE_SIZE;
+		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
+			m_plane.descriptorSet[i],
+			0, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+		);
+		descSetSceneUB.pBufferInfo = &effectUbo;
+		// vkUpdateDescriptorSetsは複数のVkDescriptorBufferInfoをまとめてもやってもいいしこのように一個ずつやってもよい
+		vkUpdateDescriptorSets(m_device, 1, &descSetSceneUB, 0, nullptr);
+
 		VkDescriptorImageInfo texInfo{};
 		texInfo.sampler = m_sampler;
 		texInfo.imageView = m_colorTarget.view;
 		texInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		VkWriteDescriptorSet descSetTexture = book_util::PrepareWriteDescriptorSet(
 			m_plane.descriptorSet[i],
-			0, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
+			1, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
 		);
 		descSetTexture.pImageInfo = &texInfo;
@@ -478,12 +493,17 @@ void PostEffectApp::PreparePlane()
 {
 	// テクスチャを貼る板用のディスクリプタセット/レイアウトを準備
 	LayoutInfo layout{};
-	VkDescriptorSetLayoutBinding descSetLayoutBindings[1];
+	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
 	descSetLayoutBindings[0].binding = 0;
-	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	descSetLayoutBindings[0].descriptorCount = 1;
 	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	descSetLayoutBindings[0].pImmutableSamplers = nullptr;
+	descSetLayoutBindings[1].binding = 1;
+	descSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descSetLayoutBindings[1].descriptorCount = 1;
+	descSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	descSetLayoutBindings[1].pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
 	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -533,6 +553,10 @@ void PostEffectApp::PreparePlane()
 	samplerCI.unnormalizedCoordinates = VK_FALSE;
 	result = vkCreateSampler(m_device, &samplerCI, nullptr, &m_sampler);
 	ThrowIfFailed(result, "vkCreateSampler Failed.");
+
+	// エフェクト用定数バッファ確保
+	uint32_t bufferSize = uint32_t(sizeof(EffectParameters));
+	m_plane.sceneUB = CreateUniformBuffers(bufferSize, imageCount);
 
 	// パイプラインレイアウトを準備
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
@@ -1022,10 +1046,12 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 		}
 	};
 
+	VkExtent2D surfaceExtent = m_swapchain->GetSurfaceExtent();
+
 	VkRect2D renderArea{};
 	renderArea.offset.x = 0;
 	renderArea.offset.y = 0;
-	renderArea.extent = m_swapchain->GetSurfaceExtent();
+	renderArea.extent = surfaceExtent;
 
 	VkRenderPass renderPass = GetRenderPass("main");
 	VkRenderPassBeginInfo rpBI{};
@@ -1036,6 +1062,20 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 	rpBI.renderArea = renderArea;
 	rpBI.clearValueCount = uint32_t(clearValue.size());
 	rpBI.pClearValues = clearValue.data();
+
+	{
+		m_effectParameter.frameCount = m_frameCount;
+		const glm::vec2& screenSize = glm::vec2(
+			float(surfaceExtent.width),
+			float(surfaceExtent.height)
+		);
+
+		const BufferObject& ubo = m_plane.sceneUB[m_frameIndex];
+		void* p = nullptr;
+		vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+		memcpy(p, &m_effectParameter, sizeof(EffectParameters)); // 本ではなぜかsizeof(ShaderParameter)になっている
+		vkUnmapMemory(m_device, ubo.memory);
+	}
 
 	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
 

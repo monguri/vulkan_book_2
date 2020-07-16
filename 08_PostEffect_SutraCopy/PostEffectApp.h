@@ -59,6 +59,18 @@ private:
 		glm::mat4 view;
 		glm::mat4 proj;
 	};
+	struct EffectParameters
+	{
+		glm::vec2 screenSize;
+		float mosaicBlockSize = 10.0f;
+		UINT frameCount = 0;
+		float ripple = 0.75f;
+		float speed = 1.5f;
+		float distortion = 0.03f;
+		float brightness = 0.25f;
+	};
+	EffectParameters m_effectParameter; // 使う場面のRenderでなくImguiから設定するのでメンバ変数にしておく必要がある
+
 	struct InstanceData
 	{
 		glm::mat4 world;
@@ -72,6 +84,8 @@ private:
 	ImageObject m_colorTarget, m_depthTarget;
 	VkFramebuffer m_renderTextureFB = VK_NULL_HANDLE;
 	VkSampler m_sampler = VK_NULL_HANDLE;
+
+	uint32_t m_frameCount = 0;
 
 	void CreateRenderPass();
 	void PrepareFramebuffers();
