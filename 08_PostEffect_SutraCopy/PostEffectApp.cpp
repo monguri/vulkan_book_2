@@ -1113,6 +1113,12 @@ void PostEffectApp::RenderImGui(const VkCommandBuffer& command)
 		ImGui::Text("DrawTeapot");
 		float framerate = ImGui::GetIO().Framerate;
 		ImGui::Text("Framerate(avg) %.3f ms/frame", 1000.0f / framerate);
+
+		ImGui::Indent();
+		ImGui::SliderFloat("Size", &m_effectParameter.mosaicBlockSize, 10, 50);
+		ImGui::Unindent();
+		ImGui::Spacing();
+
 		ImGui::End();
 	}
 
