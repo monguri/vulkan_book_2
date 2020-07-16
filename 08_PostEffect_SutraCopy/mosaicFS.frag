@@ -6,8 +6,8 @@ layout(location=0) out vec4 outColor;
 layout(set=0, binding=0)
 uniform EffectParameter
 {
-	vec2 screenSize;
-	float mosaicBlockSize;
+	vec2 windowSize;
+	float blockSize;
 	uint frameCount;
 	float ripple;
 	float speed;
@@ -20,6 +20,10 @@ uniform sampler2D texRendered;
 
 void main()
 {
-	outColor = texture(texRendered, inUV);
+	vec2 uv = inUV * windowSize;
+	uv /= blockSize;
+	uv = floor(uv) * blockSize;
+	uv /= windowSize;
+	outColor = texture(texRendered, uv);
 }
 

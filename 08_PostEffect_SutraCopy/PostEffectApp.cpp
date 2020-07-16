@@ -1065,7 +1065,7 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 
 	{
 		m_effectParameter.frameCount = m_frameCount;
-		const glm::vec2& screenSize = glm::vec2(
+		m_effectParameter.screenSize = glm::vec2(
 			float(surfaceExtent.width),
 			float(surfaceExtent.height)
 		);
