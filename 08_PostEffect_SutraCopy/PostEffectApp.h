@@ -15,6 +15,11 @@ public:
 	{
 		InstanceCount = 200
 	};
+	enum EffectType
+	{
+		EFFECT_TYPE_MOSAIC,
+		EFFECT_TYPE_WATER,
+	};
 
 private:
 	ImageObject m_depthBuffer;
@@ -42,7 +47,6 @@ private:
 	};
 	ModelData m_teapot;
 	std::vector<BufferObject> m_instanceUniforms;
-	ModelData m_plane;
 
 	struct LayoutInfo
 	{
@@ -50,7 +54,7 @@ private:
 		VkPipelineLayout pipeline = VK_NULL_HANDLE;
 	};
 	LayoutInfo m_layoutTeapot;
-	LayoutInfo m_layoutPlane;
+	LayoutInfo m_layoutEffect;
 
 	uint32_t m_frameIndex = 0;
 
@@ -69,7 +73,6 @@ private:
 		float distortion = 0.03f;
 		float brightness = 0.25f;
 	};
-	EffectParameters m_effectParameter; // 使う場面のRenderでなくImguiから設定するのでメンバ変数にしておく必要がある
 
 	struct InstanceData
 	{
@@ -85,6 +88,12 @@ private:
 	VkFramebuffer m_renderTextureFB = VK_NULL_HANDLE;
 	VkSampler m_sampler = VK_NULL_HANDLE;
 
+	EffectParameters m_effectParameter; // 使う場面のRenderでなくImguiから設定するのでメンバ変数にしておく必要がある
+	std::vector<BufferObject> m_effectUB;
+	std::vector<VkDescriptorSet> m_effectDescriptorSet;
+
+	EffectType m_effectType = EFFECT_TYPE_MOSAIC;
+	VkPipeline m_mosaicPipeline, m_waterPipeline = VK_NULL_HANDLE;
 	uint32_t m_frameCount = 0;
 
 	void CreateRenderPass();

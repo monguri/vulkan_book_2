@@ -93,9 +93,28 @@ void PostEffectApp::Prepare()
 void PostEffectApp::Cleanup()
 {
 	DestroyModelData(m_teapot);
-	DestroyModelData(m_plane);
 
-	for (const LayoutInfo& layout : { m_layoutTeapot, m_layoutPlane })
+	for (const BufferObject& ubo : m_instanceUniforms)
+	{
+		DestroyBuffer(ubo);
+	}
+	m_instanceUniforms.clear();
+
+	for (const BufferObject& ubo : m_effectUB)
+	{
+		DestroyBuffer(ubo);
+	}
+	m_effectUB.clear();
+
+	for (const VkPipeline& pipeline : { m_mosaicPipeline, m_waterPipeline})
+	{
+		vkDestroyPipeline(m_device, pipeline, nullptr);
+	}
+
+	vkFreeDescriptorSets(m_device, m_descriptorPool, uint32_t(m_effectDescriptorSet.size()), m_effectDescriptorSet.data());
+	m_effectDescriptorSet.clear();
+
+	for (const LayoutInfo& layout : { m_layoutTeapot, m_layoutEffect })
 	{
 		vkDestroyDescriptorSetLayout(m_device, layout.descriptorSet, nullptr);
 		vkDestroyPipelineLayout(m_device, layout.pipeline, nullptr);
@@ -463,11 +482,11 @@ void PostEffectApp::PreparePostEffectDescriptors()
 	for (size_t i = 0; i < imageCount; ++i)
 	{
 		VkDescriptorBufferInfo effectUbo{};
-		effectUbo.buffer = m_plane.sceneUB[i].buffer;
+		effectUbo.buffer = m_effectUB[i].buffer;
 		effectUbo.offset = 0;
 		effectUbo.range = VK_WHOLE_SIZE;
 		VkWriteDescriptorSet descSetSceneUB = book_util::PrepareWriteDescriptorSet(
-			m_plane.descriptorSet[i],
+			m_effectDescriptorSet[i],
 			0, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
 		);
@@ -480,7 +499,7 @@ void PostEffectApp::PreparePostEffectDescriptors()
 		texInfo.imageView = m_colorTarget.view;
 		texInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		VkWriteDescriptorSet descSetTexture = book_util::PrepareWriteDescriptorSet(
-			m_plane.descriptorSet[i],
+			m_effectDescriptorSet[i],
 			1, // dstBinding。VkDescriptorSetLayoutBindingのbinding、シェーダでのbinding値と一致する必要がある
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
 		);
@@ -522,14 +541,12 @@ void PostEffectApp::PreparePlane()
 	descriptorSetAI.pSetLayouts = &layout.descriptorSet;
 
 	uint32_t imageCount = m_swapchain->GetImageCount();
-	m_plane.descriptorSet.reserve(imageCount);
+	m_effectDescriptorSet.resize(imageCount);
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
 		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-		result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
+		result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &m_effectDescriptorSet[i]);
 		ThrowIfFailed(result, "vkAllocateDescriptorSets Failed.");
-
-		m_plane.descriptorSet.push_back(descriptorSet);
 	}
 
 	VkSamplerCreateInfo samplerCI{};
@@ -556,7 +573,7 @@ void PostEffectApp::PreparePlane()
 
 	// エフェクト用定数バッファ確保
 	uint32_t bufferSize = uint32_t(sizeof(EffectParameters));
-	m_plane.sceneUB = CreateUniformBuffers(bufferSize, imageCount);
+	m_effectUB = CreateUniformBuffers(bufferSize, imageCount);
 
 	// パイプラインレイアウトを準備
 	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
@@ -570,7 +587,7 @@ void PostEffectApp::PreparePlane()
 	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &layout.pipeline);
 	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 
-	m_layoutPlane = layout;
+	m_layoutEffect = layout;
 }
 
 void PostEffectApp::CreatePipelineTeapot()
@@ -793,10 +810,15 @@ void PostEffectApp::CreatePipelinePlane()
 	viewportCI.pScissors = &scissor;
 
 	// シェーダのロード
-	std::vector<VkPipelineShaderStageCreateInfo> shaderStages
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStagesForMosaic
 	{
 		book_util::LoadShader(m_device, "quadVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
 		book_util::LoadShader(m_device, "mosaicFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+	};
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStagesForWater
+	{
+		book_util::LoadShader(m_device, "quadVS.spv", VK_SHADER_STAGE_VERTEX_BIT),
+		book_util::LoadShader(m_device, "waterFS.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
 	};
 
 	std::vector<VkDynamicState> dynamicStates{
@@ -819,8 +841,8 @@ void PostEffectApp::CreatePipelinePlane()
 	VkGraphicsPipelineCreateInfo pipelineCI{};
 	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineCI.pNext = nullptr;
-	pipelineCI.stageCount = uint32_t(shaderStages.size());
-	pipelineCI.pStages = shaderStages.data();
+	pipelineCI.stageCount = uint32_t(shaderStagesForMosaic.size());
+	pipelineCI.pStages = shaderStagesForMosaic.data();
 	pipelineCI.pVertexInputState = &pipelineVisCI;
 	pipelineCI.pInputAssemblyState = &inputAssemblyCI;
 	pipelineCI.pTessellationState = nullptr;
@@ -830,15 +852,21 @@ void PostEffectApp::CreatePipelinePlane()
 	pipelineCI.pDepthStencilState = &dsState;
 	pipelineCI.pColorBlendState = &colorBlendStateCI;
 	pipelineCI.pDynamicState = &pipelineDynamicStateCI;
-	pipelineCI.layout = m_layoutPlane.pipeline;
+	pipelineCI.layout = m_layoutEffect.pipeline;
 	pipelineCI.renderPass = renderPass;
 	pipelineCI.subpass = 0;
 	pipelineCI.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineCI.basePipelineIndex = 0;
-	VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_plane.pipeline);
+	VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_mosaicPipeline);
 	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
 
-	book_util::DestroyShaderModules(m_device, shaderStages);
+	pipelineCI.stageCount = uint32_t(shaderStagesForWater.size());
+	pipelineCI.pStages = shaderStagesForWater.data();
+	result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_waterPipeline);
+	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
+
+	book_util::DestroyShaderModules(m_device, shaderStagesForMosaic);
+	book_util::DestroyShaderModules(m_device, shaderStagesForWater);
 }
 
 void PostEffectApp::PrepareRenderTexture()
@@ -1070,7 +1098,7 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 			float(surfaceExtent.height)
 		);
 
-		const BufferObject& ubo = m_plane.sceneUB[m_frameIndex];
+		const BufferObject& ubo = m_effectUB[m_frameIndex];
 		void* p = nullptr;
 		vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
 		memcpy(p, &m_effectParameter, sizeof(EffectParameters)); // 本ではなぜかsizeof(ShaderParameter)になっている
@@ -1079,7 +1107,20 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 
 	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_plane.pipeline);
+	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutEffect.pipeline, 0, 1, &m_effectDescriptorSet[m_frameIndex], 0, nullptr);
+
+	switch (m_effectType)
+	{
+		case EFFECT_TYPE_MOSAIC:
+			vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_mosaicPipeline);
+			break;
+		case EFFECT_TYPE_WATER:
+			vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_waterPipeline);
+			break;
+		default:
+			ThrowIfFailed(VkResult::VK_ERROR_UNKNOWN, "PostEffectApp::RenderToMain Invalid m_effectType value.");
+			break;
+	}
 
 	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
 	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
@@ -1094,7 +1135,6 @@ void PostEffectApp::RenderToMain(const VkCommandBuffer& command)
 	vkCmdSetScissor(command, 0, 1, &scissor);
 	vkCmdSetViewport(command, 0, 1, &viewport);
 
-	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutPlane.pipeline, 0, 1, &m_plane.descriptorSet[m_frameIndex], 0, nullptr);
 	vkCmdDraw(command, 4, 1, 0, 0);
 
 	RenderImGui(command);
@@ -1114,10 +1154,27 @@ void PostEffectApp::RenderImGui(const VkCommandBuffer& command)
 		float framerate = ImGui::GetIO().Framerate;
 		ImGui::Text("Framerate(avg) %.3f ms/frame", 1000.0f / framerate);
 
-		ImGui::Indent();
-		ImGui::SliderFloat("Size", &m_effectParameter.mosaicBlockSize, 10, 50);
-		ImGui::Unindent();
+		ImGui::Combo("Effect", (int*)&m_effectType, "Mosaic effct\0Water effect\0\0");
 		ImGui::Spacing();
+
+		if (ImGui::CollapsingHeader("Mosaic effect", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::Indent();
+			ImGui::SliderFloat("Size", &m_effectParameter.mosaicBlockSize, 10.0f, 50.0f);
+			ImGui::Unindent();
+			ImGui::Spacing();
+		}
+
+		if (ImGui::CollapsingHeader("Water effect", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::Indent();
+			ImGui::SliderFloat("Ripple", &m_effectParameter.ripple, 0.1f, 1.5f);
+			ImGui::SliderFloat("Speed", &m_effectParameter.speed, 1.0f, 5.0f);
+			ImGui::SliderFloat("Distortion", &m_effectParameter.distortion, 0.01f, 0.5f);
+			ImGui::SliderFloat("Brightness", &m_effectParameter.brightness, 0.0f, 1.0f);
+			ImGui::Unindent();
+			ImGui::Spacing();
+		}
 
 		ImGui::End();
 	}
