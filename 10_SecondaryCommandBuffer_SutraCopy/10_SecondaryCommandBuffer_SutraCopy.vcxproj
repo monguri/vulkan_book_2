@@ -149,7 +149,7 @@
   <ItemGroup>
     <ClCompile Include="..\commonSutraCopy\Swapchain.cpp" />
     <ClCompile Include="..\commonSutraCopy\VulkanAppBase.cpp" />
-    <ClCompile Include="InstancingApp.cpp" />
+    <ClCompile Include="SecondaryCmdBuffersApp.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -157,7 +157,7 @@
     <ClInclude Include="..\commonSutraCopy\TeapotModel.h" />
     <ClInclude Include="..\commonSutraCopy\VulkanAppBase.h" />
     <ClInclude Include="..\commonSutraCopy\VulkanBookUtil.h" />
-    <ClInclude Include="InstancingApp.h" />
+    <ClInclude Include="SecondaryCmdBuffersApp.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
