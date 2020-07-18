@@ -14,7 +14,7 @@ static glm::vec4 colorSet[] = {
 	glm::vec4(0.6f, 1.0f, 0.8f, 1.0f),
 };
 
-void InstancingApp::Prepare()
+void SecondaryCmdBuffersApp::Prepare()
 {
 	CreateRenderPass();
 
@@ -68,7 +68,7 @@ void InstancingApp::Prepare()
 	CreatePipeline();
 }
 
-void InstancingApp::Cleanup()
+void SecondaryCmdBuffersApp::Cleanup()
 {
 	for (const BufferObject& ubo : m_uniformBuffers)
 	{
@@ -109,7 +109,7 @@ void InstancingApp::Cleanup()
 	m_commandBuffers.clear();
 }
 
-void InstancingApp::Render()
+void SecondaryCmdBuffersApp::Render()
 {
 	if (m_isMinimizedWindow)
 	{
@@ -227,7 +227,7 @@ void InstancingApp::Render()
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
 }
 
-bool InstancingApp::OnSizeChanged(uint32_t width, uint32_t height)
+bool SecondaryCmdBuffersApp::OnSizeChanged(uint32_t width, uint32_t height)
 {
 	bool result = VulkanAppBase::OnSizeChanged(width, height);
 	if (result)
@@ -246,7 +246,7 @@ bool InstancingApp::OnSizeChanged(uint32_t width, uint32_t height)
 	return result;
 }
 
-void InstancingApp::CreateRenderPass()
+void SecondaryCmdBuffersApp::CreateRenderPass()
 {
 	std::array<VkAttachmentDescription, 2> attachments;
 	VkAttachmentDescription& colorTarget = attachments[0];
@@ -309,7 +309,7 @@ void InstancingApp::CreateRenderPass()
 	ThrowIfFailed(result, "vkCreateRenderPass Failed.");
 }
 
-void InstancingApp::PrepareFramebuffers()
+void SecondaryCmdBuffersApp::PrepareFramebuffers()
 {
 	uint32_t imageCount = m_swapchain->GetImageCount();
 	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
@@ -325,7 +325,7 @@ void InstancingApp::PrepareFramebuffers()
 	}
 }
 
-void InstancingApp::PrepareTeapot()
+void SecondaryCmdBuffersApp::PrepareTeapot()
 {
 	// ステージ用のVBとIB、ターゲットのVBとIBの用意
 	uint32_t bufferSizeVB = uint32_t(sizeof(TeapotModel::TeapotVerticesPN));
@@ -379,7 +379,7 @@ void InstancingApp::PrepareTeapot()
 	}
 }
 
-void InstancingApp::PrepareInstanceData()
+void SecondaryCmdBuffersApp::PrepareInstanceData()
 {
 	VkMemoryPropertyFlags memoryProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
@@ -421,7 +421,7 @@ void InstancingApp::PrepareInstanceData()
 	}
 }
 
-void InstancingApp::PrepareDescriptors()
+void SecondaryCmdBuffersApp::PrepareDescriptors()
 {
 	// ディスクリプタセットレイアウト
 	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
@@ -498,7 +498,7 @@ void InstancingApp::PrepareDescriptors()
 	}
 }
 
-void InstancingApp::CreatePipeline()
+void SecondaryCmdBuffersApp::CreatePipeline()
 {
 	uint32_t stride = uint32_t(sizeof(TeapotModel::Vertex));
 
