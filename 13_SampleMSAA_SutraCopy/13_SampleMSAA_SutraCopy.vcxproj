@@ -147,6 +147,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\commonSutraCopy\Swapchain.cpp" />
+    <ClCompile Include="..\commonSutraCopy\VulkanAppBase.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="RenderToTextureApp.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\commonSutraCopy\Swapchain.h" />
+    <ClInclude Include="..\commonSutraCopy\TeapotModel.h" />
+    <ClInclude Include="..\commonSutraCopy\VulkanAppBase.h" />
+    <ClInclude Include="..\commonSutraCopy\VulkanBookUtil.h" />
+    <ClInclude Include="RenderToTextureApp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
