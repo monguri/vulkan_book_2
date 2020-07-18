@@ -385,7 +385,7 @@ void InstancingApp::PrepareInstanceData()
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
 	// インスタンシング用のユニフォームバッファを準備
-	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceDataMax;
+	uint32_t bufferSize = uint32_t(sizeof(InstanceData)) * InstanceCount;
 	m_instanceUniforms.resize(m_swapchain->GetImageCount());
 	for (BufferObject& ubo : m_instanceUniforms)
 	{
@@ -393,9 +393,9 @@ void InstancingApp::PrepareInstanceData()
 	}
 
 	std::random_device rnd;
-	std::vector<InstanceData> data(InstanceDataMax);
+	std::vector<InstanceData> data(InstanceCount);
 
-	for (uint32_t i = 0; i < InstanceDataMax; ++i)
+	for (uint32_t i = 0; i < InstanceCount; ++i)
 	{
 		const glm::vec3& axisX = glm::vec3(1.0f, 0.0f, 0.0f);
 		const glm::vec3& axisZ = glm::vec3(0.0f, 0.0f, 1.0f);
