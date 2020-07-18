@@ -51,6 +51,8 @@ private:
 	std::vector<BufferObject> m_uniformBuffers;
 	std::vector<BufferObject> m_instanceUniforms;
 
+	std::vector<VkCommandBuffer> m_secondaryCommands;
+
 	void CreateRenderPass();
 	void PrepareFramebuffers();
 	void PrepareTeapot();

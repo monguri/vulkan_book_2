@@ -164,40 +164,21 @@ void SecondaryCmdBuffersApp::Render()
 		vkUnmapMemory(m_device, ubo.memory);
 	}
 
-	VkCommandBuffer& command = m_commandBuffers[imageIndex];
+	// TODO;これでいいのか？フェンスのことはまだ理解できてないな
 	const VkFence& fence = m_commandFences[imageIndex];
 	result = vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
 	ThrowIfFailed(result, "vkWaitForFences Failed.");
+	result = vkResetFences(m_device, 1, &fence);
+	ThrowIfFailed(result, "vkResetFences Failed.");
 
+	// セカンダリコマンドバッファを呼び出す
+	VkCommandBuffer& command = m_commandBuffers[imageIndex];
 	result = vkBeginCommandBuffer(command, &commandBI);
 	ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
-	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
-
-	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
-	const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
-
-	VkOffset2D offset{};
-	offset.x = 0;
-	offset.y = 0;
-	VkRect2D scissor{};
-	scissor.offset = offset;
-	scissor.extent = extent;
-
-	vkCmdSetScissor(command, 0, 1, &scissor);
-	vkCmdSetViewport(command, 0, 1, &viewport);
-
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-	vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
-	vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	VkDeviceSize offsets[] = {0};
-	vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
-	vkCmdDrawIndexed(command, m_teapot.indexCount, InstanceCount, 0, 0, 0);
-
+	vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+	vkCmdExecuteCommands(command, 1, &m_secondaryCommands[imageIndex]);
 	vkCmdEndRenderPass(command);
-	result = vkEndCommandBuffer(command);
-	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
 
-	// コマンドバッファ実行
 	VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -210,8 +191,8 @@ void SecondaryCmdBuffersApp::Render()
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = &m_renderCompletedSem;
 
-	result = vkResetFences(m_device, 1, &fence);
-	ThrowIfFailed(result, "vkResetFences Failed.");
+	result = vkEndCommandBuffer(command);
+	ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
 	result = vkQueueSubmit(m_deviceQueue, 1, &submitInfo, fence);
 	ThrowIfFailed(result, "vkQueueSubmit Failed.");
 
@@ -632,5 +613,63 @@ void SecondaryCmdBuffersApp::CreatePipeline()
 
 void SecondaryCmdBuffersApp::PrepareSecondaryCommands()
 {
+	uint32_t imageCount = m_swapchain->GetImageCount();
+	m_secondaryCommands.resize(imageCount);
+
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.pNext = nullptr;
+	allocInfo.commandPool = m_commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+	allocInfo.commandBufferCount = imageCount;
+
+	VkResult result = vkAllocateCommandBuffers(m_device, &allocInfo, m_secondaryCommands.data());
+	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
+
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		VkCommandBufferInheritanceInfo inheritanceInfo;
+		inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+		inheritanceInfo.pNext = nullptr;
+		inheritanceInfo.renderPass = m_renderPass;
+		inheritanceInfo.subpass = 0;
+		inheritanceInfo.framebuffer = m_framebuffers[i];
+		inheritanceInfo.occlusionQueryEnable = VK_FALSE;
+		inheritanceInfo.queryFlags = 0;
+		inheritanceInfo.pipelineStatistics = 0;
+
+		VkCommandBufferBeginInfo commandBI{};
+		commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		commandBI.pNext = nullptr;
+		commandBI.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+		commandBI.pInheritanceInfo = &inheritanceInfo;
+
+		const VkCommandBuffer& command = m_secondaryCommands[i];
+		result = vkBeginCommandBuffer(command, &commandBI);
+		ThrowIfFailed(result, "vkBeginCommandBuffer Failed.");
+
+		const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+		const VkViewport& viewport = book_util::GetViewportFlipped(float(extent.width), float(extent.height));
+
+		VkOffset2D offset{};
+		offset.x = 0;
+		offset.y = 0;
+		VkRect2D scissor{};
+		scissor.offset = offset;
+		scissor.extent = extent;
+
+		vkCmdSetScissor(command, 0, 1, &scissor);
+		vkCmdSetViewport(command, 0, 1, &viewport);
+
+		vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+		vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
+		vkCmdBindIndexBuffer(command, m_teapot.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+		VkDeviceSize offsets[] = {0};
+		vkCmdBindVertexBuffers(command, 0, 1, &m_teapot.vertexBuffer.buffer, offsets);
+		vkCmdDrawIndexed(command, m_teapot.indexCount, InstanceCount, 0, 0, 0);
+
+		result = vkEndCommandBuffer(command);
+		ThrowIfFailed(result, "vkEndCommandBuffer Failed.");
+	}
 }
 
