@@ -1,4 +1,4 @@
-#include "RenderToTextureApp.h"
+#include "SampleMSAAApp.h"
 #include "VulkanBookUtil.h"
 #include "TeapotModel.h"
 
