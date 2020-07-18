@@ -54,18 +54,9 @@ void SecondaryCmdBuffersApp::Prepare()
 	PrepareInstanceData();
 	PrepareDescriptors();
 
-	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
-	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutCI.pNext = nullptr;
-	pipelineLayoutCI.flags = 0;
-	pipelineLayoutCI.setLayoutCount = 1;
-	pipelineLayoutCI.pSetLayouts = &m_descriptorSetLayout;
-	pipelineLayoutCI.pushConstantRangeCount = 0;
-	pipelineLayoutCI.pPushConstantRanges = nullptr;
-	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
-	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
-
 	CreatePipeline();
+
+	PrepareSecondaryCommands();
 }
 
 void SecondaryCmdBuffersApp::Cleanup()
@@ -377,6 +368,36 @@ void SecondaryCmdBuffersApp::PrepareTeapot()
 		uint32_t buffersize = uint32_t(sizeof(ShaderParameters));
 		m_uniformBuffers[i] = CreateBuffer(buffersize , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, uboMemoryProps);
 	}
+
+	// ディスクリプタセットレイアウト
+	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
+	descSetLayoutBindings[0].binding = 0;
+	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descSetLayoutBindings[0].descriptorCount = 1;
+	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	descSetLayoutBindings[1].binding = 1;
+	descSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descSetLayoutBindings[1].descriptorCount = 1;
+	descSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
+	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descSetLayoutCI.pNext = nullptr;
+	descSetLayoutCI.bindingCount = _countof(descSetLayoutBindings);
+	descSetLayoutCI.pBindings = descSetLayoutBindings;
+	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &m_descriptorSetLayout);
+	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCI{};
+	pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCI.pNext = nullptr;
+	pipelineLayoutCI.flags = 0;
+	pipelineLayoutCI.setLayoutCount = 1;
+	pipelineLayoutCI.pSetLayouts = &m_descriptorSetLayout;
+	pipelineLayoutCI.pushConstantRangeCount = 0;
+	pipelineLayoutCI.pPushConstantRanges = nullptr;
+	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCI, nullptr, &m_pipelineLayout);
+	ThrowIfFailed(result, "vkCreatePipelineLayout Failed.");
 }
 
 void SecondaryCmdBuffersApp::PrepareInstanceData()
@@ -423,25 +444,6 @@ void SecondaryCmdBuffersApp::PrepareInstanceData()
 
 void SecondaryCmdBuffersApp::PrepareDescriptors()
 {
-	// ディスクリプタセットレイアウト
-	VkDescriptorSetLayoutBinding descSetLayoutBindings[2];
-	descSetLayoutBindings[0].binding = 0;
-	descSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descSetLayoutBindings[0].descriptorCount = 1;
-	descSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	descSetLayoutBindings[1].binding = 1;
-	descSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descSetLayoutBindings[1].descriptorCount = 1;
-	descSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	VkDescriptorSetLayoutCreateInfo descSetLayoutCI{};
-	descSetLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	descSetLayoutCI.pNext = nullptr;
-	descSetLayoutCI.bindingCount = _countof(descSetLayoutBindings);
-	descSetLayoutCI.pBindings = descSetLayoutBindings;
-	VkResult result = vkCreateDescriptorSetLayout(m_device, &descSetLayoutCI, nullptr, &m_descriptorSetLayout);
-	ThrowIfFailed(result, "vkCreateDescriptorSetLayout Failed.");
-
 	// ディスクリプタセット
 	uint32_t imageCount = m_swapchain->GetImageCount();
 	VkDescriptorSetAllocateInfo descriptorSetAI{};
@@ -454,7 +456,7 @@ void SecondaryCmdBuffersApp::PrepareDescriptors()
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
 		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-		result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
+		VkResult result = vkAllocateDescriptorSets(m_device, &descriptorSetAI, &descriptorSet);
 		ThrowIfFailed(result, "vkAllocateDescriptorSets Failed.");
 
 		m_descriptorSets.push_back(descriptorSet);
@@ -626,5 +628,9 @@ void SecondaryCmdBuffersApp::CreatePipeline()
 	ThrowIfFailed(result, "vkCreateGraphicsPipelines Failed.");
 
 	book_util::DestroyShaderModules(m_device, shaderStages);
+}
+
+void SecondaryCmdBuffersApp::PrepareSecondaryCommands()
+{
 }
 

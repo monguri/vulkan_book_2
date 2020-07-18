@@ -57,7 +57,6 @@ private:
 	void PrepareInstanceData();
 	void PrepareDescriptors();
 	void CreatePipeline();
-
-	void RenderImGui(VkCommandBuffer command);
+	void PrepareSecondaryCommands();
 };
 
