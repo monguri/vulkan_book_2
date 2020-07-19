@@ -86,7 +86,6 @@ void SampleMSAAApp::Cleanup()
 	m_commandBuffers.clear();
 }
 
-#if 1
 void SampleMSAAApp::Render()
 {
 	if (m_isMinimizedWindow)
@@ -239,165 +238,6 @@ void SampleMSAAApp::Render()
 
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
 }
-#else
-void SampleMSAAApp::Render()
-{
-  if (m_isMinimizedWindow)
-  {
-    MsgLoopMinimizedWindow();
-  }
-  uint32_t imageIndex = 0;
-  auto result = m_swapchain->AcquireNextImage(&imageIndex, m_presentCompletedSem);
-  if (result == VK_ERROR_OUT_OF_DATE_KHR)
-  {
-    return;
-  }
-  m_frameIndex = imageIndex;
-  auto command = m_commandBuffers[m_frameIndex];
-  auto fence = m_commandFences[m_frameIndex];
-  vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
-  vkResetFences(m_device, 1, &fence);
-
-  VkCommandBufferBeginInfo commandBI{
-    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    nullptr, 0, nullptr
-  };
-  vkBeginCommandBuffer(command, &commandBI);
-
-  RenderToTexture(command);
-
-  VkImageMemoryBarrier imageBarrier{
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    nullptr,
-    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, // srcAccessMask
-    VK_ACCESS_SHADER_READ_BIT, // dstAccessMask
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    VK_QUEUE_FAMILY_IGNORED,
-    VK_QUEUE_FAMILY_IGNORED,
-    m_colorTarget.image,
-    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-  };
-  vkCmdPipelineBarrier(command,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-    VK_DEPENDENCY_BY_REGION_BIT,
-    0, nullptr, // memoryBarrier
-    0, nullptr, // bufferMemoryBarrier
-    1, &imageBarrier
-  );
-
-  std::array<VkClearValue, 2> clearValue = {
-  {
-    { 0.0f, 0.0f, 0.0f, 0.0f}, // for Color
-    { 1.0f, 0 }, // for Depth
-  }
-  };
-
-  auto renderArea = VkRect2D{
-    VkOffset2D{0,0},
-    m_swapchain->GetSurfaceExtent(),
-  };
-
-
-  VkRenderPassBeginInfo rpBI{
-    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-    nullptr,
-    GetRenderPass("draw_msaa"),
-    m_framebufferMSAA,
-    renderArea,
-    uint32_t(clearValue.size()), clearValue.data()
-  };
-  vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
-
-  RenderToMSAABuffer(command);
-
-  auto swapchainImage = m_swapchain->GetImage(imageIndex);
-  VkImageMemoryBarrier swapchainToDstImageBarrier{
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    nullptr,
-    VK_ACCESS_MEMORY_READ_BIT, // srcAccessMask
-    VK_ACCESS_TRANSFER_WRITE_BIT, // dstAccessMask
-    VK_IMAGE_LAYOUT_UNDEFINED, //VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    VK_QUEUE_FAMILY_IGNORED,
-    VK_QUEUE_FAMILY_IGNORED,
-    swapchainImage,
-    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-  };
-  vkCmdPipelineBarrier(command,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    VK_PIPELINE_STAGE_TRANSFER_BIT,
-    VK_DEPENDENCY_BY_REGION_BIT,
-    0, nullptr, // memoryBarrier
-    0, nullptr, // bufferMemoryBarrier
-    1, &swapchainToDstImageBarrier
-  );
-
-  auto surfaceExtent = m_swapchain->GetSurfaceExtent();
-  VkImageResolve regionMsaa{
-    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-    { 0, 0, 0 }, // srcOffset
-    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-    { 0, 0, 0 }, // dstOffset
-    { surfaceExtent.width, surfaceExtent.height, 1} // extent
-  };
-  
-  
-  vkCmdResolveImage(
-    command,
-    m_msaaColor.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    1, &regionMsaa
-  );
-
-  VkImageMemoryBarrier swapchainToPresentSrcBarrier{
-    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    nullptr,
-    VK_ACCESS_TRANSFER_WRITE_BIT, // srcAccessMask
-    VK_ACCESS_MEMORY_READ_BIT,  // dstAccessMask
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    VK_QUEUE_FAMILY_IGNORED,
-    VK_QUEUE_FAMILY_IGNORED,
-    swapchainImage,
-    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-  };
-#if 0  // ‚±‚ê‚Å‚à“®‚­
-  vkCmdPipelineBarrier(command,
-    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-    VK_DEPENDENCY_BY_REGION_BIT,
-    0, nullptr, // memoryBarrier
-    0, nullptr, // bufferMemoryBarrier
-    1, &imageBarrier3
-  );
-#else
-  vkCmdPipelineBarrier(command,
-    VK_PIPELINE_STAGE_TRANSFER_BIT,
-    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-    VK_DEPENDENCY_BY_REGION_BIT,
-    0, nullptr, // memoryBarrier
-    0, nullptr, // bufferMemoryBarrier
-    1, &swapchainToPresentSrcBarrier
-  );
-#endif
-
-  VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  VkSubmitInfo submitInfo{
-    VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    nullptr,
-    1, &m_presentCompletedSem, // WaitSemaphore
-    &waitStageMask, // DstStageMask
-    1, &command, // CommandBuffer
-    1, &m_renderCompletedSem, // SignalSemaphore
-  };
-  vkEndCommandBuffer(command);
-  vkQueueSubmit(m_deviceQueue, 1, &submitInfo, fence);
-
-  m_swapchain->QueuePresent(m_deviceQueue, m_frameIndex, m_renderCompletedSem);
-}
-#endif
 
 void SampleMSAAApp::CreateRenderPass()
 {
@@ -1311,7 +1151,7 @@ void SampleMSAAApp::PrepareMsaaTexture()
 	// ƒfƒvƒX
 	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 	usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-	imageCI = book_util::CreateEasyImageCreateInfo(colorFormat, extent, usage, samples);
+	imageCI = book_util::CreateEasyImageCreateInfo(depthFormat, extent, usage, samples);
 	result = vkCreateImage(m_device, &imageCI, nullptr, &m_msaaDepth.image);
 	ThrowIfFailed(result, "vkCreateImage Failed.");
 
@@ -1392,7 +1232,6 @@ void SampleMSAAApp::RenderToTexture(const VkCommandBuffer& command)
 	vkCmdEndRenderPass(command);
 }
 
-#if 1
 void SampleMSAAApp::RenderToMSAABuffer(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
@@ -1466,64 +1305,6 @@ void SampleMSAAApp::RenderToMSAABuffer(const VkCommandBuffer& command)
 
 	vkCmdEndRenderPass(command);
 }
-#else
-void SampleMSAAApp::RenderToMSAABuffer( const VkCommandBuffer& command )
-{
-	std::array<VkClearValue, 2> clearValue = {
-		{
-			{0.0f, 0.0f, 0.0f, 0.0f}, // for Color
-			{1.0f, 0}, // for Depth
-		}
-	};
-
-	VkRect2D renderArea{};
-	renderArea.offset.x = 0;
-	renderArea.offset.y = 0;
-	renderArea.extent = m_swapchain->GetSurfaceExtent();
-
-	VkRenderPassBeginInfo rpBI{};
-	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	rpBI.pNext = nullptr;
-	rpBI.renderPass = GetRenderPass("draw_msaa");
-	rpBI.framebuffer = m_framebufferMSAA;
-	rpBI.renderArea = renderArea;
-	rpBI.clearValueCount = uint32_t(clearValue.size());
-	rpBI.pClearValues = clearValue.data();
-
-  {
-    ShaderParameters shaderParams{};
-	shaderParams.world = glm::rotate(glm::mat4(1.0f), glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    shaderParams.view = glm::lookAtRH(
-      glm::vec3(0.0f, 0.0f, 5.0f),
-      glm::vec3(0.0f, 0.0f, 0.0f),
-      glm::vec3(0, 1, 0)
-    );
-    auto extent = m_swapchain->GetSurfaceExtent();
-    shaderParams.proj = glm::perspectiveRH(
-      glm::radians(45.0f), float(extent.width) / float(extent.height), 0.1f, 1000.0f
-    );
-
-    auto ubo = m_plane.sceneUB[m_frameIndex];
-    void* p;
-    vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
-    memcpy(p, &shaderParams, sizeof(ShaderParameters));
-    vkUnmapMemory(m_device, ubo.memory);
-  }
-
-  vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
-  vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_plane.pipeline);
-  vkCmdBindDescriptorSets(
-    command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutPlane.pipeline,
-    0, 1, &m_plane.descriptorSet[m_frameIndex], 0, nullptr);
-  vkCmdBindIndexBuffer(command, m_plane.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  VkDeviceSize offsets[] = { 0 };
-  vkCmdBindVertexBuffers(command, 0,
-    1, &m_plane.vertexBuffer.buffer, offsets);
-  vkCmdDrawIndexed(command, m_plane.indexCount, 1, 0, 0, 0);
-
-  vkCmdEndRenderPass(command);
-}
-#endif
 
 void SampleMSAAApp::DestroyModelData(ModelData& model)
 {
