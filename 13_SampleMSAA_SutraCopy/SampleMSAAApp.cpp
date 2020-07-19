@@ -296,6 +296,67 @@ void SampleMSAAApp::CreateRenderPassRT()
 
 void SampleMSAAApp::CreateRenderPassMSAA()
 {
+	VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_4_BIT;
+	VkFormat format = m_swapchain->GetSurfaceFormat().format;
+
+	std::array<VkAttachmentDescription, 2> attachments;
+	attachments[0] = VkAttachmentDescription{};
+	attachments[0].flags = 0;
+	attachments[0].format = format;
+	attachments[0].samples = samples;
+	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+	attachments[1] = VkAttachmentDescription{};
+	attachments[1].flags = 0;
+	attachments[1].format = VK_FORMAT_D32_SFLOAT;
+	attachments[1].samples = samples;
+	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference colorRef{};
+	colorRef.attachment = 0;
+	colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depthRef{};
+	depthRef.attachment = 1;
+	depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpassDesc{};
+	subpassDesc.flags = 0;
+	subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpassDesc.inputAttachmentCount = 0;
+	subpassDesc.pInputAttachments = nullptr;
+	subpassDesc.colorAttachmentCount = 1;
+	subpassDesc.pColorAttachments = &colorRef;
+	subpassDesc.pResolveAttachments = nullptr;
+	subpassDesc.pDepthStencilAttachment = &depthRef;
+	subpassDesc.preserveAttachmentCount = 0;
+	subpassDesc.pPreserveAttachments = nullptr;
+
+	VkRenderPassCreateInfo rpCI{};
+	rpCI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	rpCI.pNext = nullptr;
+	rpCI.flags = 0;
+	rpCI.attachmentCount = uint32_t(attachments.size());
+	rpCI.pAttachments = attachments.data();
+	rpCI.subpassCount = 1;
+	rpCI.pSubpasses = &subpassDesc;
+	rpCI.dependencyCount = 0;
+	rpCI.pDependencies = nullptr;
+
+	VkRenderPass renderPass;
+	VkResult result = vkCreateRenderPass(m_device, &rpCI, nullptr, &renderPass);
+	ThrowIfFailed(result, "vkCreateRenderPass Failed.");
+	RegisterRenderPass("draw_msaa", renderPass);
 }
 
 void SampleMSAAApp::PrepareFramebuffers()
