@@ -158,7 +158,7 @@ void SampleMSAAApp::Render()
 	swapchainToDstImageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	swapchainToDstImageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	swapchainToDstImageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	swapchainToDstImageBarrier.image = m_colorTarget.image;
+	swapchainToDstImageBarrier.image = swapchainImage;
 	swapchainToDstImageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	swapchainToDstImageBarrier.subresourceRange.baseMipLevel = 0;
 	swapchainToDstImageBarrier.subresourceRange.levelCount = 1;
@@ -1392,6 +1392,7 @@ void SampleMSAAApp::RenderToTexture(const VkCommandBuffer& command)
 	vkCmdEndRenderPass(command);
 }
 
+#if 1
 void SampleMSAAApp::RenderToMSAABuffer(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
@@ -1465,6 +1466,64 @@ void SampleMSAAApp::RenderToMSAABuffer(const VkCommandBuffer& command)
 
 	vkCmdEndRenderPass(command);
 }
+#else
+void SampleMSAAApp::RenderToMSAABuffer( const VkCommandBuffer& command )
+{
+	std::array<VkClearValue, 2> clearValue = {
+		{
+			{0.0f, 0.0f, 0.0f, 0.0f}, // for Color
+			{1.0f, 0}, // for Depth
+		}
+	};
+
+	VkRect2D renderArea{};
+	renderArea.offset.x = 0;
+	renderArea.offset.y = 0;
+	renderArea.extent = m_swapchain->GetSurfaceExtent();
+
+	VkRenderPassBeginInfo rpBI{};
+	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	rpBI.pNext = nullptr;
+	rpBI.renderPass = GetRenderPass("draw_msaa");
+	rpBI.framebuffer = m_framebufferMSAA;
+	rpBI.renderArea = renderArea;
+	rpBI.clearValueCount = uint32_t(clearValue.size());
+	rpBI.pClearValues = clearValue.data();
+
+  {
+    ShaderParameters shaderParams{};
+	shaderParams.world = glm::rotate(glm::mat4(1.0f), glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    shaderParams.view = glm::lookAtRH(
+      glm::vec3(0.0f, 0.0f, 5.0f),
+      glm::vec3(0.0f, 0.0f, 0.0f),
+      glm::vec3(0, 1, 0)
+    );
+    auto extent = m_swapchain->GetSurfaceExtent();
+    shaderParams.proj = glm::perspectiveRH(
+      glm::radians(45.0f), float(extent.width) / float(extent.height), 0.1f, 1000.0f
+    );
+
+    auto ubo = m_plane.sceneUB[m_frameIndex];
+    void* p;
+    vkMapMemory(m_device, ubo.memory, 0, VK_WHOLE_SIZE, 0, &p);
+    memcpy(p, &shaderParams, sizeof(ShaderParameters));
+    vkUnmapMemory(m_device, ubo.memory);
+  }
+
+  vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_plane.pipeline);
+  vkCmdBindDescriptorSets(
+    command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layoutPlane.pipeline,
+    0, 1, &m_plane.descriptorSet[m_frameIndex], 0, nullptr);
+  vkCmdBindIndexBuffer(command, m_plane.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  VkDeviceSize offsets[] = { 0 };
+  vkCmdBindVertexBuffers(command, 0,
+    1, &m_plane.vertexBuffer.buffer, offsets);
+  vkCmdDrawIndexed(command, m_plane.indexCount, 1, 0, 0, 0);
+
+  vkCmdEndRenderPass(command);
+}
+#endif
 
 void SampleMSAAApp::DestroyModelData(ModelData& model)
 {
