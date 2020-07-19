@@ -66,6 +66,8 @@ private:
 	VkSampler m_sampler = VK_NULL_HANDLE;
 
 	void CreateRenderPass();
+	void CreateRenderPassRT();
+	void CreateRenderPassMSAA();
 	void PrepareFramebuffers();
 	void PrepareRenderTexture();
 	void PrepareTeapot();
