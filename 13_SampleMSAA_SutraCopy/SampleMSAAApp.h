@@ -66,6 +66,7 @@ private:
 	VkSampler m_sampler = VK_NULL_HANDLE;
 
 	ImageObject m_msaaColor, m_msaaDepth;
+	VkFramebuffer m_framebufferMSAA = VK_NULL_HANDLE;
 
 	void CreateRenderPass();
 	void CreateRenderPassRT();
@@ -79,7 +80,7 @@ private:
 	void CreatePipelineTeapot();
 	void CreatePipelinePlane();
 	void RenderToTexture(const VkCommandBuffer& command);
-	void RenderToMain(const VkCommandBuffer& command);
+	void RenderToMsaaBuffer(const VkCommandBuffer& command);
 	void DestroyModelData(ModelData& model);
 };
 

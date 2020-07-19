@@ -144,9 +144,81 @@ void SampleMSAAApp::Render()
 		1, &imageBarrier // imageMemoryBarrier
 	);
 
-	RenderToMain(command);
+	RenderToMsaaBuffer(command);
 
-	// コマンドバッファ実行
+	const VkImage& swapchainImage = m_swapchain->GetImage(imageIndex);
+
+	VkImageMemoryBarrier swapchainToDstImageBarrier{};
+	swapchainToDstImageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	swapchainToDstImageBarrier.pNext = nullptr;
+	swapchainToDstImageBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	swapchainToDstImageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	swapchainToDstImageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	swapchainToDstImageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	swapchainToDstImageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	swapchainToDstImageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	swapchainToDstImageBarrier.image = m_colorTarget.image;
+	swapchainToDstImageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	swapchainToDstImageBarrier.subresourceRange.baseMipLevel = 0;
+	swapchainToDstImageBarrier.subresourceRange.levelCount = 1;
+	swapchainToDstImageBarrier.subresourceRange.baseArrayLayer = 0;
+	swapchainToDstImageBarrier.subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(
+		command,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_DEPENDENCY_BY_REGION_BIT,
+		0, nullptr, // memoryBarrier
+		0, nullptr, // bufferMemoryBarrier
+		1, &swapchainToDstImageBarrier // imageMemoryBarrier
+	);
+
+	const VkExtent2D& surfaceExtent = m_swapchain->GetSurfaceExtent();
+	VkImageResolve regionMsaa{};
+	regionMsaa.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	regionMsaa.srcSubresource.mipLevel = 0;
+	regionMsaa.srcSubresource.baseArrayLayer = 0;
+	regionMsaa.srcSubresource.layerCount = 0;
+	regionMsaa.srcOffset.x = 0;
+	regionMsaa.srcOffset.y = 0;
+	regionMsaa.srcOffset.z = 0;
+	regionMsaa.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	regionMsaa.dstSubresource.mipLevel = 0;
+	regionMsaa.dstSubresource.baseArrayLayer = 0;
+	regionMsaa.dstSubresource.layerCount = 0;
+	regionMsaa.extent.width = surfaceExtent.width;
+	regionMsaa.extent.height = surfaceExtent.height;
+	regionMsaa.extent.depth = 1;
+
+	vkCmdResolveImage(command, m_msaaColor.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &regionMsaa);
+
+	VkImageMemoryBarrier swapchainToPresentSrcBarrier{};
+	swapchainToPresentSrcBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	swapchainToPresentSrcBarrier.pNext = nullptr;
+	swapchainToPresentSrcBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	swapchainToPresentSrcBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	swapchainToPresentSrcBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	swapchainToPresentSrcBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	swapchainToPresentSrcBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	swapchainToPresentSrcBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	swapchainToPresentSrcBarrier.image = swapchainImage;
+	swapchainToPresentSrcBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	swapchainToPresentSrcBarrier.subresourceRange.baseMipLevel = 0;
+	swapchainToPresentSrcBarrier.subresourceRange.levelCount = 1;
+	swapchainToPresentSrcBarrier.subresourceRange.baseArrayLayer = 0;
+	swapchainToPresentSrcBarrier.subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(
+		command,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+		VK_DEPENDENCY_BY_REGION_BIT,
+		0, nullptr, // memoryBarrier
+		0, nullptr, // bufferMemoryBarrier
+		1, &swapchainToPresentSrcBarrier // imageMemoryBarrier
+	);
+
 	VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -378,6 +450,15 @@ void SampleMSAAApp::PrepareFramebuffers()
 
 void SampleMSAAApp::PrepareFramebufferMSAA()
 {
+	uint32_t imageCount = m_swapchain->GetImageCount();
+	const VkExtent2D& extent = m_swapchain->GetSurfaceExtent();
+
+	std::vector<VkImageView> views;
+	views.push_back(m_msaaColor.view);
+	views.push_back(m_msaaDepth.view);
+
+	VkRenderPass renderPass = GetRenderPass("draw_msaa");
+	m_framebufferMSAA = CreateFramebuffer(renderPass, extent.width, extent.height, uint32_t(views.size()), views.data());
 }
 
 bool SampleMSAAApp::OnSizeChanged(uint32_t width, uint32_t height)
@@ -844,7 +925,7 @@ void SampleMSAAApp::CreatePipelinePlane()
 	multisampleCI.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampleCI.pNext = nullptr;
 	multisampleCI.flags = 0;
-	multisampleCI.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleCI.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT; // MSAA
 	multisampleCI.sampleShadingEnable = VK_FALSE;
 	multisampleCI.minSampleShading = 0.0f;
 	multisampleCI.pSampleMask = nullptr;
@@ -892,7 +973,7 @@ void SampleMSAAApp::CreatePipelinePlane()
 	const VkPipelineDepthStencilStateCreateInfo& dsState = book_util::GetDefaultDepthStencilState();
 
 	// パイプライン構築
-	VkRenderPass renderPass = GetRenderPass("default");
+	VkRenderPass renderPass = GetRenderPass("draw_msaa");
 	VkGraphicsPipelineCreateInfo pipelineCI{};
 	pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineCI.pNext = nullptr;
@@ -1151,11 +1232,11 @@ void SampleMSAAApp::RenderToTexture(const VkCommandBuffer& command)
 	vkCmdEndRenderPass(command);
 }
 
-void SampleMSAAApp::RenderToMain(const VkCommandBuffer& command)
+void SampleMSAAApp::RenderToMsaaBuffer(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
-			{0.85f, 0.5f, 0.5f, 0.0f}, // for Color
+			{0.0f, 0.0f, 0.0f, 0.0f}, // for Color
 			{1.0f, 0}, // for Depth
 		}
 	};
@@ -1165,12 +1246,11 @@ void SampleMSAAApp::RenderToMain(const VkCommandBuffer& command)
 	renderArea.offset.y = 0;
 	renderArea.extent = m_swapchain->GetSurfaceExtent();
 
-	VkRenderPass renderPass = GetRenderPass("default");
 	VkRenderPassBeginInfo rpBI{};
 	rpBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	rpBI.pNext = nullptr;
-	rpBI.renderPass = renderPass;
-	rpBI.framebuffer = m_framebuffers[m_frameIndex];
+	rpBI.renderPass = GetRenderPass("draw_msaa");
+	rpBI.framebuffer = m_framebufferMSAA;
 	rpBI.renderArea = renderArea;
 	rpBI.clearValueCount = uint32_t(clearValue.size());
 	rpBI.pClearValues = clearValue.data();
