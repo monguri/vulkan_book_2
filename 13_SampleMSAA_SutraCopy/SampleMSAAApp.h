@@ -80,7 +80,7 @@ private:
 	void CreatePipelineTeapot();
 	void CreatePipelinePlane();
 	void RenderToTexture(const VkCommandBuffer& command);
-	void RenderToMsaaBuffer(const VkCommandBuffer& command);
+	void RenderToMSAABuffer(const VkCommandBuffer& command);
 	void DestroyModelData(ModelData& model);
 };
 

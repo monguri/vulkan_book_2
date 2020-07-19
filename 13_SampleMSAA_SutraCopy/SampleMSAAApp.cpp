@@ -86,6 +86,7 @@ void SampleMSAAApp::Cleanup()
 	m_commandBuffers.clear();
 }
 
+#if 1
 void SampleMSAAApp::Render()
 {
 	if (m_isMinimizedWindow)
@@ -144,7 +145,7 @@ void SampleMSAAApp::Render()
 		1, &imageBarrier // imageMemoryBarrier
 	);
 
-	RenderToMsaaBuffer(command);
+	RenderToMSAABuffer(command);
 
 	const VkImage& swapchainImage = m_swapchain->GetImage(imageIndex);
 
@@ -179,14 +180,14 @@ void SampleMSAAApp::Render()
 	regionMsaa.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	regionMsaa.srcSubresource.mipLevel = 0;
 	regionMsaa.srcSubresource.baseArrayLayer = 0;
-	regionMsaa.srcSubresource.layerCount = 0;
+	regionMsaa.srcSubresource.layerCount = 1;
 	regionMsaa.srcOffset.x = 0;
 	regionMsaa.srcOffset.y = 0;
 	regionMsaa.srcOffset.z = 0;
 	regionMsaa.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	regionMsaa.dstSubresource.mipLevel = 0;
 	regionMsaa.dstSubresource.baseArrayLayer = 0;
-	regionMsaa.dstSubresource.layerCount = 0;
+	regionMsaa.dstSubresource.layerCount = 1;
 	regionMsaa.extent.width = surfaceExtent.width;
 	regionMsaa.extent.height = surfaceExtent.height;
 	regionMsaa.extent.depth = 1;
@@ -238,6 +239,165 @@ void SampleMSAAApp::Render()
 
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
 }
+#else
+void SampleMSAAApp::Render()
+{
+  if (m_isMinimizedWindow)
+  {
+    MsgLoopMinimizedWindow();
+  }
+  uint32_t imageIndex = 0;
+  auto result = m_swapchain->AcquireNextImage(&imageIndex, m_presentCompletedSem);
+  if (result == VK_ERROR_OUT_OF_DATE_KHR)
+  {
+    return;
+  }
+  m_frameIndex = imageIndex;
+  auto command = m_commandBuffers[m_frameIndex];
+  auto fence = m_commandFences[m_frameIndex];
+  vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
+  vkResetFences(m_device, 1, &fence);
+
+  VkCommandBufferBeginInfo commandBI{
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    nullptr, 0, nullptr
+  };
+  vkBeginCommandBuffer(command, &commandBI);
+
+  RenderToTexture(command);
+
+  VkImageMemoryBarrier imageBarrier{
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    nullptr,
+    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, // srcAccessMask
+    VK_ACCESS_SHADER_READ_BIT, // dstAccessMask
+    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    VK_QUEUE_FAMILY_IGNORED,
+    VK_QUEUE_FAMILY_IGNORED,
+    m_colorTarget.image,
+    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+  };
+  vkCmdPipelineBarrier(command,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+    VK_DEPENDENCY_BY_REGION_BIT,
+    0, nullptr, // memoryBarrier
+    0, nullptr, // bufferMemoryBarrier
+    1, &imageBarrier
+  );
+
+  std::array<VkClearValue, 2> clearValue = {
+  {
+    { 0.0f, 0.0f, 0.0f, 0.0f}, // for Color
+    { 1.0f, 0 }, // for Depth
+  }
+  };
+
+  auto renderArea = VkRect2D{
+    VkOffset2D{0,0},
+    m_swapchain->GetSurfaceExtent(),
+  };
+
+
+  VkRenderPassBeginInfo rpBI{
+    VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+    nullptr,
+    GetRenderPass("draw_msaa"),
+    m_framebufferMSAA,
+    renderArea,
+    uint32_t(clearValue.size()), clearValue.data()
+  };
+  vkCmdBeginRenderPass(command, &rpBI, VK_SUBPASS_CONTENTS_INLINE);
+
+  RenderToMSAABuffer(command);
+
+  auto swapchainImage = m_swapchain->GetImage(imageIndex);
+  VkImageMemoryBarrier swapchainToDstImageBarrier{
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    nullptr,
+    VK_ACCESS_MEMORY_READ_BIT, // srcAccessMask
+    VK_ACCESS_TRANSFER_WRITE_BIT, // dstAccessMask
+    VK_IMAGE_LAYOUT_UNDEFINED, //VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    VK_QUEUE_FAMILY_IGNORED,
+    VK_QUEUE_FAMILY_IGNORED,
+    swapchainImage,
+    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+  };
+  vkCmdPipelineBarrier(command,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_PIPELINE_STAGE_TRANSFER_BIT,
+    VK_DEPENDENCY_BY_REGION_BIT,
+    0, nullptr, // memoryBarrier
+    0, nullptr, // bufferMemoryBarrier
+    1, &swapchainToDstImageBarrier
+  );
+
+  auto surfaceExtent = m_swapchain->GetSurfaceExtent();
+  VkImageResolve regionMsaa{
+    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+    { 0, 0, 0 }, // srcOffset
+    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+    { 0, 0, 0 }, // dstOffset
+    { surfaceExtent.width, surfaceExtent.height, 1} // extent
+  };
+  
+  
+  vkCmdResolveImage(
+    command,
+    m_msaaColor.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    1, &regionMsaa
+  );
+
+  VkImageMemoryBarrier swapchainToPresentSrcBarrier{
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    nullptr,
+    VK_ACCESS_TRANSFER_WRITE_BIT, // srcAccessMask
+    VK_ACCESS_MEMORY_READ_BIT,  // dstAccessMask
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    VK_QUEUE_FAMILY_IGNORED,
+    VK_QUEUE_FAMILY_IGNORED,
+    swapchainImage,
+    { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+  };
+#if 0  // ‚±‚ê‚Å‚à“®‚­
+  vkCmdPipelineBarrier(command,
+    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+    VK_DEPENDENCY_BY_REGION_BIT,
+    0, nullptr, // memoryBarrier
+    0, nullptr, // bufferMemoryBarrier
+    1, &imageBarrier3
+  );
+#else
+  vkCmdPipelineBarrier(command,
+    VK_PIPELINE_STAGE_TRANSFER_BIT,
+    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    VK_DEPENDENCY_BY_REGION_BIT,
+    0, nullptr, // memoryBarrier
+    0, nullptr, // bufferMemoryBarrier
+    1, &swapchainToPresentSrcBarrier
+  );
+#endif
+
+  VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  VkSubmitInfo submitInfo{
+    VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    nullptr,
+    1, &m_presentCompletedSem, // WaitSemaphore
+    &waitStageMask, // DstStageMask
+    1, &command, // CommandBuffer
+    1, &m_renderCompletedSem, // SignalSemaphore
+  };
+  vkEndCommandBuffer(command);
+  vkQueueSubmit(m_deviceQueue, 1, &submitInfo, fence);
+
+  m_swapchain->QueuePresent(m_deviceQueue, m_frameIndex, m_renderCompletedSem);
+}
+#endif
 
 void SampleMSAAApp::CreateRenderPass()
 {
@@ -1232,7 +1392,7 @@ void SampleMSAAApp::RenderToTexture(const VkCommandBuffer& command)
 	vkCmdEndRenderPass(command);
 }
 
-void SampleMSAAApp::RenderToMsaaBuffer(const VkCommandBuffer& command)
+void SampleMSAAApp::RenderToMSAABuffer(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
