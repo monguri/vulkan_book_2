@@ -237,6 +237,8 @@ void SampleMSAAApp::Render()
 	ThrowIfFailed(result, "vkQueueSubmit Failed.");
 
 	m_swapchain->QueuePresent(m_deviceQueue, imageIndex, m_renderCompletedSem);
+
+	m_frameCount++;
 }
 
 void SampleMSAAApp::CreateRenderPass()
@@ -1174,7 +1176,7 @@ void SampleMSAAApp::RenderToTexture(const VkCommandBuffer& command)
 {
 	std::array<VkClearValue, 2> clearValue = {
 		{
-			{0.25f, 0.25f, 0.25f, 0.0f}, // for Color
+			{1.0f, 0.0f, 0.0f, 0.0f}, // for Color
 			{1.0f, 0}, // for Depth
 		}
 	};
@@ -1257,9 +1259,9 @@ void SampleMSAAApp::RenderToMSAABuffer(const VkCommandBuffer& command)
 
 	{
 		ShaderParameters shaderParam{};
-		shaderParam.world = glm::rotate(glm::mat4(1.0f), glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		shaderParam.world = glm::rotate(glm::mat4(1.0f), glm::radians(float(m_frameCount)), glm::vec3(0.0f, 1.0f, 0.0f));
 		shaderParam.view = glm::lookAtRH(
-			glm::vec3(0.0f, 0.0f, 3.0f),
+			glm::vec3(0.0f, 0.0f, 5.0f),
 			glm::vec3(0.0f, 0.0f, 0.0f),
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);

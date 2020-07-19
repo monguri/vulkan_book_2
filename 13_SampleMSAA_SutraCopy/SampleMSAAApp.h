@@ -53,6 +53,7 @@ private:
 	LayoutInfo m_layoutPlane;
 
 	uint32_t m_frameIndex = 0;
+	uint32_t m_frameCount = 0;
 
 	struct ShaderParameters
 	{
