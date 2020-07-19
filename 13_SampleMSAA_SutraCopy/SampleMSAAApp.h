@@ -65,11 +65,15 @@ private:
 	VkFramebuffer m_renderTextureFB = VK_NULL_HANDLE;
 	VkSampler m_sampler = VK_NULL_HANDLE;
 
+	ImageObject m_msaaColor, m_msaaDepth;
+
 	void CreateRenderPass();
 	void CreateRenderPassRT();
 	void CreateRenderPassMSAA();
 	void PrepareFramebuffers();
+	void PrepareFramebufferMSAA();
 	void PrepareRenderTexture();
+	void PrepareMsaaTexture();
 	void PrepareTeapot();
 	void PreparePlane();
 	void CreatePipelineTeapot();

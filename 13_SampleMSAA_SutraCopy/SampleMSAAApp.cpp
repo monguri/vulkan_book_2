@@ -46,6 +46,9 @@ void SampleMSAAApp::Prepare()
 	ThrowIfFailed(result, "vkAllocateCommandBuffers Failed.");
 
 	PrepareRenderTexture();
+	PrepareMsaaTexture();
+
+	PrepareFramebufferMSAA();
 
 	PrepareTeapot();
 	PreparePlane();
@@ -310,6 +313,10 @@ void SampleMSAAApp::PrepareFramebuffers()
 		VkRenderPass renderPass = GetRenderPass("default");
 		m_framebuffers[i] = CreateFramebuffer(renderPass, extent.width, extent.height, uint32_t(views.size()), views.data());
 	}
+}
+
+void SampleMSAAApp::PrepareFramebufferMSAA()
+{
 }
 
 bool SampleMSAAApp::OnSizeChanged(uint32_t width, uint32_t height)
@@ -965,6 +972,60 @@ void SampleMSAAApp::PrepareRenderTexture()
 	views.push_back(m_depthTarget.view);
 	VkRenderPass renderPass = GetRenderPass("render_target");
 	m_renderTextureFB = CreateFramebuffer(renderPass, TextureWidth, TextureHeight, uint32_t(views.size()), views.data());
+}
+
+void SampleMSAAApp::PrepareMsaaTexture()
+{
+	// カラー
+	VkFormat colorFormat = m_swapchain->GetSurfaceFormat().format;
+	const VkExtent2D& surfaceExtent = m_swapchain->GetSurfaceExtent();
+	VkExtent3D extent;
+	extent.width = surfaceExtent.width;
+	extent.height = surfaceExtent.height;
+	extent.depth = 1;
+	VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_4_BIT;
+	VkImageCreateInfo imageCI = book_util::CreateEasyImageCreateInfo(colorFormat, extent, usage, samples);
+	VkResult result = vkCreateImage(m_device, &imageCI, nullptr, &m_msaaColor.image);
+	ThrowIfFailed(result, "vkCreateImage Failed.");
+
+	VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	m_msaaColor.memory = AllocateMemory(m_msaaColor.image, memProps);
+	result = vkBindImageMemory(m_device, m_msaaColor.image, m_msaaColor.memory, 0);
+	ThrowIfFailed(result, "vkBindImageMemory Failed.");
+
+	VkImageViewCreateInfo viewCI{};
+	viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewCI.pNext = nullptr;
+	viewCI.flags = 0;
+	viewCI.image = m_msaaColor.image;
+	viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewCI.format = imageCI.format;
+	viewCI.components = book_util::DefaultComponentMapping();
+	viewCI.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+	result = vkCreateImageView(m_device, &viewCI, nullptr, &m_msaaColor.view);
+	ThrowIfFailed(result, "vkCreateImageView Failed.");
+
+	// デプス
+	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+	usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	imageCI = book_util::CreateEasyImageCreateInfo(colorFormat, extent, usage, samples);
+	result = vkCreateImage(m_device, &imageCI, nullptr, &m_msaaDepth.image);
+	ThrowIfFailed(result, "vkCreateImage Failed.");
+
+	m_msaaDepth.memory = AllocateMemory(m_msaaDepth.image, memProps);
+	result = vkBindImageMemory(m_device, m_msaaDepth.image, m_msaaDepth.memory, 0);
+	ThrowIfFailed(result, "vkBindImageMemory Failed.");
+
+	viewCI.image = m_msaaDepth.image;
+	viewCI.format = depthFormat;
+	viewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	result = vkCreateImageView(m_device, &viewCI, nullptr, &m_msaaDepth.view);
+	ThrowIfFailed(result, "vkCreateImageView Failed.");
+
+	// サンプル数をデバイスがどれだけ許してるか取得するおまけコード
+	VkPhysicalDeviceProperties physProps;
+	vkGetPhysicalDeviceProperties(m_physicalDevice, &physProps);
 }
 
 void SampleMSAAApp::RenderToTexture(const VkCommandBuffer& command)
